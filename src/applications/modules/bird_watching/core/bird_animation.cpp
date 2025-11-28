@@ -37,8 +37,7 @@ bool BirdAnimation::init(lv_obj_t* parent_obj) {
             return false;
         }
 
-        // 设置对象大小和位置
-        lv_obj_set_size(display_obj_, 240, 240);
+        // 设置位置（缩放后会自动调整大小）
         lv_obj_set_pos(display_obj_, 0, 0);
     }
 
@@ -314,14 +313,18 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     // 设置图像源
     lv_img_set_src(display_obj_, img_dsc);
 
-    // 调整显示对象大小以匹配图像，或居中显示
-    if (width != 240 || height != 240) {
-        // 计算居中位置
-        int16_t x = (240 - width) / 2;
-        int16_t y = (240 - height) / 2;
-        lv_obj_set_pos(display_obj_, x, y);
-        lv_obj_set_size(display_obj_, width, height);
-    }
+    // 计算缩放比例 - 120x120拉伸到240x240需要2倍缩放
+    // LVGL缩放：256 = 1.0x, 512 = 2.0x
+    uint16_t zoom_factor = 512; // 2.0x缩放
+
+    // 设置缩放中心点为图像中心（LVGL 7.x pivot）
+    lv_img_set_pivot(display_obj_, width / 2, height / 2);
+
+    // 应用缩放 - LVGL 7.x兼容
+    lv_img_set_zoom(display_obj_, zoom_factor);
+
+    // 设置图像对象到屏幕中心，让pivot缩放后居中
+    lv_obj_set_pos(display_obj_, (240 - width) / 2, (240 - height) / 2);
 
     // 确保对象可见 - LVGL 7.x兼容
     lv_obj_set_hidden(display_obj_, false);
@@ -349,9 +352,9 @@ void BirdAnimation::releasePreviousFrame() {
 }
 
 void BirdAnimation::createTestImage() {
-    // 创建一个60x60的红色测试图像
-    const int width = 60;
-    const int height = 60;
+    // 创建一个120x120的红色测试图像
+    const int width = 120;
+    const int height = 120;
     const size_t data_size = width * height * 2; // RGB565
 
     // 释放前一帧
@@ -390,11 +393,9 @@ void BirdAnimation::createTestImage() {
     // 设置到显示对象
     lv_img_set_src(display_obj_, img_dsc);
 
-    // 居中显示
-    int16_t x = (240 - width) / 2;
-    int16_t y = (240 - height) / 2;
-    lv_obj_set_pos(display_obj_, x, y);
-    lv_obj_set_size(display_obj_, width, height);
+    // 拉伸到全屏显示
+    lv_obj_set_pos(display_obj_, 0, 0);
+    lv_obj_set_size(display_obj_, 240, 240); // 拉伸到全屏
 }
 
 void BirdAnimation::timerCallback(lv_task_t* timer) {
