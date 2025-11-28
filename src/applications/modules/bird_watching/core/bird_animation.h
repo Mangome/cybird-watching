@@ -44,6 +44,16 @@ private:
     bool is_playing_;            // 播放状态
     uint32_t frame_duration_;    // 每帧持续时间（毫秒）
 
+    // 内存管理
+    lv_img_dsc_t* current_img_dsc_; // 当前图像描述符
+    uint8_t* current_img_data_;     // 当前图像数据
+
+    // 释放前一帧的内存
+    void releasePreviousFrame();
+
+    // 创建测试图像（调试用）
+    void createTestImage();
+
     // 定时器回调函数
     static void timerCallback(lv_task_t* timer);
 
@@ -55,6 +65,9 @@ private:
 
     // 播放下一帧
     void playNextFrame();
+
+    // 手动加载图像（LVGL无法直接加载时使用）
+    bool tryManualImageLoad(const std::string& file_path);
 };
 
 } // namespace BirdWatching
