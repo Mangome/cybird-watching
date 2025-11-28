@@ -1,0 +1,28 @@
+# 构建目录
+build/
+cmake-build-*/
+
+# 生成文件
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# IDE文件
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln
+*.vcxproj*
+
+# 临时文件
+*.log
+*.tmp
+
+# 资源文件（需手动添加）
+assets/*.bin
+assets/*.png
+assets/*.jpg

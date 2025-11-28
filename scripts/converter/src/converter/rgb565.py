@@ -16,7 +16,7 @@ class RGB565Converter:
     @staticmethod
     def rgb_to_rgb565(r: int, g: int, b: int) -> int:
         """
-        将RGB值转换为RGB565格式
+        将RGB值转换为标准RGB565格式
 
         Args:
             r: 红色分量 (0-255)
@@ -24,14 +24,14 @@ class RGB565Converter:
             b: 蓝色分量 (0-255)
 
         Returns:
-            RGB565格式的16位颜色值
+            标准RGB565格式的16位颜色值
         """
         # 将8位颜色转换为5位或6位
         r5 = (r >> 3) & 0x1F    # 红色5位
         g6 = (g >> 2) & 0x3F    # 绿色6位
         b5 = (b >> 3) & 0x1F    # 蓝色5位
 
-        # 组合为RGB565格式 (RRRRRGGGGGGBBBBB)
+        # 组合为标准RGB565格式 (RRRRRGGGGGGBBBBB)
         return (r5 << 11) | (g6 << 5) | b5
 
     @staticmethod
@@ -71,6 +71,12 @@ class RGB565Converter:
                 for y in range(height):
                     for x in range(width):
                         r, g, b = pixels[y, x]
+                        
+                        # 重要：确保转换为Python int，避免numpy.uint8溢出问题
+                        r = int(r)
+                        g = int(g)
+                        b = int(b)
+                        
                         rgb565 = RGB565Converter.rgb_to_rgb565(r, g, b)
                         rgb565_data.append(rgb565)
 
