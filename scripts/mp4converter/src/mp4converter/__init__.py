@@ -135,6 +135,8 @@ def process(video_path: Path, output_dir: Path, frame_rate: Optional[int],
 @click.option('--frame-count', type=int, help='提取的总帧数')
 @click.option('--resize', type=str, help='目标分辨率 (格式: WIDTHxHEIGHT 或 w120 或 h120)')
 @click.option('--watermark-region', type=str, help='水印区域 (格式: X,Y,WIDTH,HEIGHT)')
+@click.option('--output-format', type=click.Choice(['rgb565', 'png']),
+              default='rgb565', help='输出格式')
 @click.option('--rgb565-format', type=click.Choice(['binary', 'c_array']),
               default='binary', help='RGB565输出格式')
 @click.option('--max-width', type=int, help='最大宽度限制')
@@ -144,8 +146,8 @@ def process(video_path: Path, output_dir: Path, frame_rate: Optional[int],
 @click.option('--keep-temp', is_flag=True, help='保留临时文件用于调试')
 def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
          frame_count: Optional[int], resize: Optional[str],
-         watermark_region: Optional[str], rgb565_format: str,
-         max_width: Optional[int], max_height: Optional[int],
+         watermark_region: Optional[str], output_format: str,
+         rgb565_format: str, max_width: Optional[int], max_height: Optional[int],
          workers: int, continue_on_error: bool, keep_temp: bool):
     """批量处理目录中的所有MP4文件
 
@@ -155,7 +157,9 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
     示例:
         mp4-converter batch videos/ output/ --frame-rate 5 --resize 64x64 --workers 8
 
-        mp4-converter batch videos/ output/ --frame-count 10 --continue-on-error
+        mp4-converter batch videos/ output/ --frame-count 10 --output-format png --continue-on-error
+
+        mp4-converter batch videos/ output/ --output-format rgb565 --rgb565-format c_array
     """
     try:
         print(f"开始批量处理:")
@@ -175,6 +179,7 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
             rgb565_format=rgb565_format,
             max_width=max_width,
             max_height=max_height,
+            output_format=output_format,
             workers=workers,
             continue_on_error=continue_on_error
         )
