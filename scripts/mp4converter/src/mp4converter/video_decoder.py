@@ -205,6 +205,31 @@ class VideoDecoder:
 
         return frame_indices
 
+    def frame_rate_sampling(self, video_info: VideoInfo, frame_rate: int) -> List[int]:
+        """基于帧率的采样算法
+
+        根据指定的帧率，在视频时长内按照固定帧率采样。
+        例如：5秒视频，每秒10帧，总共提取 5 * 10 = 50 帧。
+
+        Args:
+            video_info: 视频信息
+            frame_rate: 每秒采样帧数
+
+        Returns:
+            List[int]: 要提取的帧索引列表
+        """
+        if frame_rate <= 0:
+            raise ValueError("帧率必须大于0")
+
+        # 计算总采样帧数
+        target_frames = int(video_info.duration * frame_rate)
+
+        # 如果计算出的帧数超过视频总帧数，限制为总帧数
+        target_frames = min(target_frames, video_info.frame_count)
+
+        # 使用均匀分布采样来选择帧
+        return self.uniform_frame_sampling(video_info, target_frames)
+
     def extract_frame(self, video_path: Path, frame_index: int) -> Frame:
         """提取单帧
 

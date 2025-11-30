@@ -162,9 +162,14 @@ class MP4BatchProcessor:
                 frame_indices = self.video_decoder.uniform_frame_sampling(
                     video_info, config.frame_count
                 )
-            else:
-                frame_indices = self.video_decoder.uniform_frame_sampling(
+            elif config.frame_rate:
+                frame_indices = self.video_decoder.frame_rate_sampling(
                     video_info, config.frame_rate
+                )
+            else:
+                # 使用原始帧率，提取所有帧
+                frame_indices = self.video_decoder.uniform_frame_sampling(
+                    video_info, None
                 )
 
             print(f"将提取 {len(frame_indices)} 帧")

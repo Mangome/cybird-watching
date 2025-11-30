@@ -173,9 +173,9 @@ class ConverterBridge:
             for i, frame in enumerate(frames):
                 frame_index = start_index + i
 
-                # 使用从1开始递增的数字命名
+                # 使用简洁的数字命名，避免converter保留前缀
                 frame_number = i + 1
-                filename = f"{safe_video_name}_{frame_number:04d}.png"
+                filename = f"{frame_number}.png"
                 temp_path = temp_dir / filename
 
                 # 确保为RGB格式
@@ -337,8 +337,8 @@ class ConverterBridge:
         temp_input_dir = None
         try:
             # 1. 保存帧为临时PNG文件
-            temp_input_dir = self._create_temp_dir()
-            temp_files = self.save_frames_as_temp(frames, video_name, temp_dir=temp_input_dir)
+            temp_files = self.save_frames_as_temp(frames, video_name)
+            temp_input_dir = temp_files[0].parent if temp_files else self._create_temp_dir()
 
             if not temp_files:
                 raise ConverterBridgeError("没有成功保存的临时文件")
@@ -388,9 +388,9 @@ class ConverterBridge:
             safe_video_name = "".join(c for c in video_name if c.isalnum() or c in ('-', '_')).rstrip()
 
             for i, frame in enumerate(frames):
-                # 使用从1开始递增的数字命名，.png后缀
+                # 使用从1开始递增的数字命名，无前缀
                 frame_number = i + 1
-                filename = f"{safe_video_name}_{frame_number:04d}.png"
+                filename = f"{frame_number}.png"
                 output_path = output_dir / filename
 
                 # 如果图像是RGBA格式（有透明通道），直接保存
