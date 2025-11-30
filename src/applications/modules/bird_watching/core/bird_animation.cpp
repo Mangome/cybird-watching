@@ -127,8 +127,8 @@ void BirdAnimation::setDisplayObject(lv_obj_t* obj) {
 
 std::string BirdAnimation::getFramePath(uint8_t frame_index) const {
     char path[128];
-    snprintf(path, sizeof(path), "/birds/%d/pic-%02d.bin",
-             current_bird_.id, frame_index + 1); // 从1开始编号，格式为pic-01.bin, pic-02.bin等
+    snprintf(path, sizeof(path), "/birds/%d/%d.bin",
+             current_bird_.id, frame_index + 1); // 从1开始编号，格式为1.bin, 2.bin等
     return std::string(path);
 }
 
@@ -201,7 +201,7 @@ uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
 
     // 从1开始递增检测，直到文件不存在
     for (uint8_t i = 1; ; i++) {
-        snprintf(frame_path, sizeof(frame_path), "/birds/%d/pic-%02d.bin", bird_id, i);
+        snprintf(frame_path, sizeof(frame_path), "/birds/%d/%d.bin", bird_id, i);
 
         // 使用SD.exists检测文件是否存在
         if (SD.exists(frame_path)) {
