@@ -12,7 +12,8 @@ BirdAnimation::BirdAnimation()
     , current_frame_count_(0)
     , play_timer_(nullptr)
     , is_playing_(false)
-    , frame_duration_(125) // 默认8fps = 125ms每帧
+    , frame_interval_(200)
+    , frame_processing_(false)
     , current_img_dsc_(nullptr)
     , current_img_data_(nullptr)
 {
@@ -60,9 +61,7 @@ bool BirdAnimation::loadBird(const BirdInfo& bird_info) {
         current_frame_count_ = 8; // 默认帧数
     }
 
-    // 使用全局固定的帧率（8fps，可配置）
-    frame_duration_ = 125; // 1000ms / 8fps = 125ms，后续可配置
-
+    
     LOG_INFO("ANIM", "Bird loaded successfully");
     LOG_DEBUG("ANIM", "Bird animation details loaded");
     return true;
@@ -81,6 +80,8 @@ void BirdAnimation::startLoop() {
 
     // 重置到第一帧
     current_frame_ = 0;
+    frame_processing_ = false;
+    last_frame_time_ = 0;
 
     // 加载并显示第一帧
     if (!loadAndShowFrame(0)) {
@@ -88,15 +89,22 @@ void BirdAnimation::startLoop() {
         return;
     }
 
-    // 创建播放定时器
-    play_timer_ = lv_task_create(timerCallback, frame_duration_, LV_TASK_PRIO_MID, this);
+    // 设置第一帧处理完成的时间，确保第一帧显示足够时间
+    last_frame_time_ = millis();
+    LOG_INFO("ANIM", "First frame loaded successfully");
+
+      is_playing_ = true;
+    LOG_INFO("ANIM", "Starting loop animation for bird with " + String(current_frame_count_) + " frames");
+
+    // 创建播放定时器（使用较短的间隔来检查是否需要处理下一帧）
+    play_timer_ = lv_task_create(timerCallback, 20, LV_TASK_PRIO_HIGH, this); // 20ms检查间隔，高优先级
     if (!play_timer_) {
         LOG_ERROR("ANIM", "Failed to create animation timer");
+        is_playing_ = false;
         return;
     }
 
-    is_playing_ = true;
-    LOG_INFO("ANIM", "Started loop animation for bird");
+    LOG_INFO("ANIM", "Animation timer created successfully, interval: 20ms");
 }
 
 void BirdAnimation::stop() {
@@ -105,7 +113,9 @@ void BirdAnimation::stop() {
         play_timer_ = nullptr;
     }
     is_playing_ = false;
+    frame_processing_ = false;
     current_frame_ = 0;
+    last_frame_time_ = 0;
 
     // 释放图像内存
     releasePreviousFrame();
@@ -173,9 +183,12 @@ bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
 }
 
 void BirdAnimation::playNextFrame() {
-    if (!is_playing_) {
+    if (!is_playing_ || frame_processing_) {
         return;
     }
+
+    // 标记开始处理帧
+    frame_processing_ = true;
 
     current_frame_++;
 
@@ -192,7 +205,26 @@ void BirdAnimation::playNextFrame() {
         return;
     }
 
+    // 更新最后处理时间
+    last_frame_time_ = millis();
+    frame_processing_ = false;
+
     LOG_DEBUG("ANIM", "Playing next frame in loop");
+}
+
+void BirdAnimation::scheduleNextFrame() {
+    if (!is_playing_) {
+        return;
+    }
+
+    // 检查是否到了处理下一帧的时间
+    uint32_t current_time = millis();
+    uint32_t time_since_last = current_time - last_frame_time_;
+
+    if (time_since_last >= frame_interval_) {
+        LOG_DEBUG("ANIM", "Time to process next frame: " + String(time_since_last) + "ms elapsed");
+        playNextFrame();
+    }
 }
 
 uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
@@ -401,7 +433,7 @@ void BirdAnimation::createTestImage() {
 void BirdAnimation::timerCallback(lv_task_t* timer) {
     BirdAnimation* animation = static_cast<BirdAnimation*>(timer->user_data);
     if (animation) {
-        animation->playNextFrame();
+        animation->scheduleNextFrame();
     }
 }
 

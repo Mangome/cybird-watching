@@ -32,6 +32,12 @@ public:
     // 设置显示对象
     void setDisplayObject(lv_obj_t* obj);
 
+    // 设置帧间间隔时间
+    void setFrameInterval(uint32_t interval_ms) { frame_interval_ = interval_ms; }
+
+    // 获取当前帧间间隔时间
+    uint32_t getFrameInterval() const { return frame_interval_; }
+
     // 检测小鸟的帧数（通过扫描目录）
     uint8_t detectFrameCount(uint16_t bird_id) const;
 
@@ -42,7 +48,9 @@ private:
     uint8_t current_frame_count_; // 当前小鸟的实际帧数
     lv_task_t* play_timer_;      // 播放定时器
     bool is_playing_;            // 播放状态
-    uint32_t frame_duration_;    // 每帧持续时间（毫秒）
+        uint32_t frame_interval_;    // 帧间间隔时间（毫秒，处理完图片后的等待时间）
+    bool frame_processing_;      // 当前是否正在处理帧
+    uint32_t last_frame_time_;   // 上一帧处理完成的时间
 
     // 内存管理
     lv_img_dsc_t* current_img_dsc_; // 当前图像描述符
@@ -65,6 +73,9 @@ private:
 
     // 播放下一帧
     void playNextFrame();
+
+    // 计划下一帧播放
+    void scheduleNextFrame();
 
     // 手动加载图像（LVGL无法直接加载时使用）
     bool tryManualImageLoad(const std::string& file_path);
