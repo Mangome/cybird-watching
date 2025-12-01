@@ -80,17 +80,20 @@ class RGB565Converter:
                         rgb565 = RGB565Converter.rgb_to_rgb565(r, g, b)
                         rgb565_data.append(rgb565)
 
-                # 写入LVGL 7.9.1兼容的二进制文件
+                # 写入LVGL 9.x兼容的二进制文件
                 with open(output_path, 'wb') as f:
-                    # LVGL图像头部 (12字节)
-                    # cf (color format): LV_IMG_CF_TRUE_COLOR = 4 for RGB565
-                    # always_zero: 必须为0
-                    LV_IMG_CF_TRUE_COLOR = 4
-                    header_cf = LV_IMG_CF_TRUE_COLOR | (0 << 8)  # cf=4, always_zero=0
-                    
-                    # 写入完整的LVGL图像头部
-                    f.write(struct.pack('<I', header_cf))  # 4字节: cf + always_zero
+                    # LVGL 9.x图像头部
+                    # cf (color format): LV_COLOR_FORMAT_RGB565 = 0x12 (18) for RGB565
+                    LV_COLOR_FORMAT_RGB565 = 0x12
+                    magic = 0x37  # LVGL 9.x magic number '7' (LVGL_VERSION_MAJOR = 9 -> '7')
+                    header_cf = (magic << 24) | (LV_COLOR_FORMAT_RGB565)  # 32-bit header
+
+                    # 写入LVGL 9.x图像头部 - 参考lv_bin_decoder.c期望的格式
+                    f.write(struct.pack('<I', header_cf))  # 4字节: magic + cf
+                    f.write(struct.pack('<I', 0))  # 4字节: flags (32-bit)
                     f.write(struct.pack('<HH', width, height))  # 4字节: width + height
+                    f.write(struct.pack('<I', 0))  # 4字节: stride (calculated automatically)
+                    f.write(struct.pack('<I', 0))  # 4字节: reserved_2
                     data_size = len(rgb565_data) * 2  # RGB565每像素2字节
                     f.write(struct.pack('<I', data_size))  # 4字节: data_size
                     
