@@ -177,8 +177,9 @@ void StatsView::updateBirdList() {
             char text[128];
             if (count > 0) {
                 // 已解锁：显示 "id. 名字 x count"
+                // 格式：蓝色ID和点号，白色名字，蓝色"x"，白色次数
                 snprintf(text, sizeof(text), 
-                         "#87CEEB %d.## #FFFFFF %s x %d#",
+                         "#87CEEB %d.##FFFFFF %s ##87CEEB x ##FFFFFF %d#",
                          bird.id, bird.name.c_str(), count);
             } else {
                 // 未解锁：显示 "？？？"
