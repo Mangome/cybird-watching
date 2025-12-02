@@ -188,6 +188,12 @@ class CybirdWatchingCLI:
     def cleanup(self) -> None:
         """清理资源"""
         try:
+            # 保存命令历史
+            self.console.save_history()
+        except Exception:
+            pass
+        
+        try:
             self.connection.disconnect()
         except Exception:
             pass

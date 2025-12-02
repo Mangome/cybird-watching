@@ -3,6 +3,20 @@
 """
 from typing import Optional
 import sys
+import os
+
+# 尝试导入 readline 以支持历史命令功能
+try:
+    import readline
+    READLINE_AVAILABLE = True
+except ImportError:
+    # Windows 上尝试使用 pyreadline3
+    try:
+        import pyreadline3 as readline
+        READLINE_AVAILABLE = True
+    except ImportError:
+        READLINE_AVAILABLE = False
+        readline = None
 
 try:
     from rich.console import Console
@@ -106,6 +120,50 @@ class ConsoleInterface:
         self.config = config
         self.formatter = OutputFormatter(config.ui.enable_colors)
         self.console = Console() if RICH_AVAILABLE else None
+        self._setup_readline()
+
+    def _setup_readline(self) -> None:
+        """设置 readline 以支持历史命令"""
+        if not READLINE_AVAILABLE:
+            return
+
+        # 设置历史文件路径
+        home_dir = os.path.expanduser("~")
+        history_file = os.path.join(home_dir, ".cybird_watching_history")
+        self.history_file = history_file
+
+        # 设置历史记录最大长度
+        readline.set_history_length(1000)
+
+        # 尝试加载历史记录
+        try:
+            if os.path.exists(history_file):
+                readline.read_history_file(history_file)
+        except Exception:
+            # 忽略历史文件读取错误
+            pass
+
+        # 设置补全和编辑模式
+        try:
+            # 启用 Tab 补全（可选）
+            readline.parse_and_bind("tab: complete")
+            
+            # 在某些系统上，可能需要设置编辑模式
+            if sys.platform.startswith('linux') or sys.platform == 'darwin':
+                readline.parse_and_bind("set editing-mode emacs")
+        except Exception:
+            pass
+
+    def save_history(self) -> None:
+        """保存历史命令到文件"""
+        if not READLINE_AVAILABLE:
+            return
+
+        try:
+            readline.write_history_file(self.history_file)
+        except Exception:
+            # 忽略历史文件写入错误
+            pass
 
     def show_welcome(self) -> None:
         """显示欢迎信息"""
@@ -184,20 +242,21 @@ class ConsoleInterface:
             print(help_text)
 
     def get_user_input(self, prompt: str) -> str:
-        """获取用户输入"""
-        if self.console:
-            try:
-                # Rich的Prompt不支持复杂的格式，所以使用普通输入
-                user_input = input(prompt)
-                return user_input.strip()
-            except (EOFError, KeyboardInterrupt):
-                return "quit"
-        else:
-            try:
-                user_input = input(prompt)
-                return user_input.strip()
-            except (EOFError, KeyboardInterrupt):
-                return "quit"
+        """获取用户输入（支持历史命令）"""
+        try:
+            # 使用 input() 配合 readline，自动支持上下键历史命令
+            user_input = input(prompt)
+            user_input = user_input.strip()
+            
+            # 只记录非空命令到历史
+            if READLINE_AVAILABLE and user_input:
+                # readline 会自动将输入添加到历史记录
+                # 但我们可以手动保存以确保持久化
+                pass
+            
+            return user_input
+        except (EOFError, KeyboardInterrupt):
+            return "quit"
 
     def format_output(self, content: str, output_type: str = "response") -> str:
         """格式化输出内容"""
