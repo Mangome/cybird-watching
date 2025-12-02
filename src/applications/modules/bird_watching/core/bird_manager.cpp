@@ -8,6 +8,7 @@ namespace BirdWatching {
 
 BirdManager::BirdManager()
     : initialized_(false)
+    , first_bird_loaded_(false)
     , animation_(nullptr)
     , selector_(nullptr)
     , statistics_(nullptr)
@@ -18,6 +19,7 @@ BirdManager::BirdManager()
     trigger_request_.pending = false;
     trigger_request_.type = TRIGGER_AUTO;
     trigger_request_.bird_id = 0;
+    trigger_request_.record_stats = true;
 }
 
 BirdManager::~BirdManager() {
@@ -54,6 +56,9 @@ bool BirdManager::initialize(lv_obj_t* display_obj) {
     LOG_INFO("BIRD", "Bird Watching Manager initialized successfully");
     LOG_INFO("BIRD", "Gesture trigger enabled - shake to summon birds");
 
+    // 加载首次启动的小鸟
+    loadInitialBird();
+
     return true;
 }
 
@@ -78,13 +83,20 @@ void BirdManager::processTriggerRequest() {
     // 安全地处理动画播放
 
     if (trigger_request_.pending) {
+        bool record_stats = trigger_request_.record_stats;
         trigger_request_.pending = false;
 
         if (isPlaying()) {
             animation_->stop();
         }
 
-        playRandomBird();
+        if (trigger_request_.bird_id > 0) {
+            // 播放指定的小鸟
+            playBird(trigger_request_.bird_id, record_stats);
+        } else {
+            // 播放随机小鸟（总是记录统计）
+            playRandomBird();
+        }
     }
 }
 
@@ -98,6 +110,27 @@ bool BirdManager::triggerBird(TriggerType trigger_type) {
     trigger_request_.pending = true;
     trigger_request_.type = trigger_type;
     trigger_request_.bird_id = 0; // 随机小鸟
+    trigger_request_.record_stats = true;
+
+    return true;
+}
+
+bool BirdManager::playBirdWithoutRecording(uint16_t bird_id) {
+    if (!initialized_) {
+        LOG_ERROR("BIRD_MGR", "Bird manager not initialized");
+        return false;
+    }
+
+    if (bird_id == 0) {
+        LOG_ERROR("BIRD_MGR", "Invalid bird_id");
+        return false;
+    }
+
+    // 设置触发请求,由UI任务处理（不记录统计）
+    trigger_request_.pending = true;
+    trigger_request_.type = TRIGGER_AUTO;
+    trigger_request_.bird_id = bird_id;
+    trigger_request_.record_stats = false;
 
     return true;
 }
@@ -192,8 +225,33 @@ bool BirdManager::playRandomBird() {
         return false;
     }
 
+    return playBird(bird.id, true);
+}
+
+bool BirdManager::playBird(uint16_t bird_id, bool record_stats) {
+    if (!selector_ || !animation_) {
+        LOG_ERROR("BIRD", "Bird selector or animation not available");
+        return false;
+    }
+
+    // 从选择器获取小鸟信息
+    const std::vector<BirdInfo>& all_birds = selector_->getAllBirds();
+    const BirdInfo* bird_info = nullptr;
+    
+    for (const auto& bird : all_birds) {
+        if (bird.id == bird_id) {
+            bird_info = &bird;
+            break;
+        }
+    }
+
+    if (!bird_info) {
+        LOG_ERROR("BIRD", (String("Bird not found with ID: ") + String(bird_id)).c_str());
+        return false;
+    }
+
     // 加载小鸟动画
-    if (!animation_->loadBird(bird)) {
+    if (!animation_->loadBird(*bird_info)) {
         LOG_ERROR("BIRD", "Failed to load bird");
         return false;
     }
@@ -201,13 +259,45 @@ bool BirdManager::playRandomBird() {
     // 播放动画（循环播放）
     animation_->startLoop();
 
-    // 记录统计数据
-    if (statistics_) {
-        statistics_->recordEncounter(bird.name);
+    // 记录统计数据（如果需要）
+    if (record_stats && statistics_) {
+        statistics_->recordEncounter(bird_id);
     }
 
-    LOG_INFO("BIRD", "Playing bird animation");
+    LOG_INFO("BIRD", (String("Playing bird animation (ID: ") + String(bird_id) + 
+             ", record: " + String(record_stats ? "yes" : "no") + ")").c_str());
     return true;
+}
+
+void BirdManager::loadInitialBird() {
+    if (first_bird_loaded_) {
+        return;
+    }
+
+    if (!statistics_ || !selector_) {
+        LOG_ERROR("BIRD", "Statistics or selector not available");
+        return;
+    }
+
+    // 检查是否有历史统计数据
+    if (statistics_->hasHistoricalData()) {
+        // 有历史数据：随机选择一个已经遇见过的小鸟，不计数
+        std::vector<uint16_t> encountered_birds = statistics_->getEncounteredBirdIds();
+        if (!encountered_birds.empty()) {
+            // 随机选择一个
+            int random_index = std::rand() % encountered_birds.size();
+            uint16_t bird_id = encountered_birds[random_index];
+            
+            LOG_INFO("BIRD", (String("Loading initial bird from history (ID: ") + String(bird_id) + ")").c_str());
+            playBird(bird_id, false); // 不记录统计
+        }
+    } else {
+        // 没有历史数据：正常触发一次，计数
+        LOG_INFO("BIRD", "No historical data, triggering first bird with counting");
+        triggerBird(TRIGGER_AUTO);
+    }
+
+    first_bird_loaded_ = true;
 }
 
 void BirdManager::updateGestureDetection() {
@@ -240,7 +330,8 @@ void BirdManager::saveStatisticsIfNeeded() {
     uint32_t current_time = getCurrentTime();
     uint32_t time_since_last_save = current_time - last_stats_save_time_;
 
-    if (time_since_last_save >= (config_.stats_save_interval * 1000)) {
+    // 每10秒保存一次（10000毫秒）
+    if (time_since_last_save >= 10000) {
         if (statistics_->saveToFile()) {
             last_stats_save_time_ = current_time;
             LOG_DEBUG("BIRD", "Statistics saved automatically");

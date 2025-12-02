@@ -114,7 +114,7 @@ int getStatisticsCount() {
     if (!g_birdManager) {
         return 0;
     }
-    return g_birdManager->getStatistics().getAllStats().size();
+    return g_birdManager->getStatistics().getEncounteredBirdIds().size();
 }
 
 } // namespace BirdWatching

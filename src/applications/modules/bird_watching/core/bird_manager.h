@@ -23,6 +23,7 @@ struct BirdTriggerRequest {
     bool pending;
     TriggerType type;
     uint16_t bird_id;  // 0表示随机
+    bool record_stats; // 是否记录统计
 };
 
 class BirdManager {
@@ -41,6 +42,9 @@ public:
 
     // 手动触发小鸟出现(设置触发请求)
     bool triggerBird(TriggerType trigger_type = TRIGGER_MANUAL);
+    
+    // 播放指定小鸟（不记录统计）
+    bool playBirdWithoutRecording(uint16_t bird_id);
 
     // 处理手势事件
     void onGestureEvent(int gesture_type);
@@ -68,6 +72,7 @@ public:
 
 private:
     bool initialized_;                           // 初始化状态
+    bool first_bird_loaded_;                     // 首次小鸟是否已加载
     BirdConfig config_;                          // 全局配置
     BirdAnimation* animation_;                   // 动画播放器
     BirdSelector* selector_;                     // 小鸟选择器
@@ -82,12 +87,18 @@ private:
 
     // 初始化各个子系统
     bool initializeSubsystems(lv_obj_t* display_obj);
+    
+    // 加载首次启动的小鸟
+    void loadInitialBird();
 
     // 处理自动触发
     void handleAutoTrigger();
 
     // 播放随机小鸟
     bool playRandomBird();
+    
+    // 播放指定小鸟（内部使用，可选择是否记录统计）
+    bool playBird(uint16_t bird_id, bool record_stats = true);
 
     // 更新手势检测
     void updateGestureDetection();
