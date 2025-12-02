@@ -37,6 +37,12 @@ void updateBirdWatching() {
     }
 }
 
+void processBirdTriggerRequest() {
+    if (g_birdManager) {
+        g_birdManager->processTriggerRequest();
+    }
+}
+
 bool triggerBird() {
     if (!g_birdManager) {
         LOG_ERROR("BIRD", "Bird watching system not initialized");

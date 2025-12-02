@@ -54,4 +54,5 @@ private:
     void handleClearCommand();
     void handleTreeCommand(const String& param);
     void handleBirdCommand(const String& param);
+    void handleTaskCommand(const String& param);
 };

@@ -18,6 +18,13 @@ enum TriggerType {
     TRIGGER_GESTURE         // 手势触发
 };
 
+// 触发请求结构(用于任务间通信)
+struct BirdTriggerRequest {
+    bool pending;
+    TriggerType type;
+    uint16_t bird_id;  // 0表示随机
+};
+
 class BirdManager {
 public:
     BirdManager();
@@ -29,7 +36,10 @@ public:
     // 系统更新（在主循环中调用）
     void update();
 
-    // 手动触发小鸟出现
+    // 处理触发请求(在UI任务中调用)
+    void processTriggerRequest();
+
+    // 手动触发小鸟出现(设置触发请求)
     bool triggerBird(TriggerType trigger_type = TRIGGER_MANUAL);
 
     // 处理手势事件
@@ -66,6 +76,9 @@ private:
     uint32_t last_auto_trigger_time_;            // 上次自动触发时间
     uint32_t last_stats_save_time_;              // 上次统计数据保存时间
     uint32_t system_start_time_;                 // 系统启动时间
+
+    // 触发请求(用于跨任务通信)
+    BirdTriggerRequest trigger_request_;
 
     // 初始化各个子系统
     bool initializeSubsystems(lv_obj_t* display_obj);

@@ -15,6 +15,9 @@ BirdManager::BirdManager()
     , last_stats_save_time_(0)
     , system_start_time_(0)
 {
+    trigger_request_.pending = false;
+    trigger_request_.type = TRIGGER_AUTO;
+    trigger_request_.bird_id = 0;
 }
 
 BirdManager::~BirdManager() {
@@ -60,6 +63,9 @@ void BirdManager::update() {
         return;
     }
 
+    // 注意: 此函数在System任务中调用
+    // 不要直接操作LVGL对象,只设置触发请求
+
     // 处理自动触发
     handleAutoTrigger();
 
@@ -68,26 +74,41 @@ void BirdManager::update() {
         updateGestureDetection();
     }
 
-    // 定期保存统计数据
+    // 定期保存统计数据(不涉及LVGL)
     saveStatisticsIfNeeded();
+}
+
+void BirdManager::processTriggerRequest() {
+    if (!initialized_) {
+        return;
+    }
+
+    // 注意: 此函数在UI任务中调用,已持有LVGL锁
+    // 安全地处理动画播放
+
+    if (trigger_request_.pending) {
+        trigger_request_.pending = false;
+
+        if (isPlaying()) {
+            animation_->stop();
+        }
+
+        playRandomBird();
+    }
 }
 
 bool BirdManager::triggerBird(TriggerType trigger_type) {
     if (!initialized_) {
-        LOG_ERROR("BIRD", "Bird manager not initialized");
+        LOG_ERROR("BIRD_MGR", "Bird manager not initialized");
         return false;
     }
 
-    if (isPlaying()) {
-        LOG_DEBUG("BIRD", "Bird animation already playing, stopping and restarting");
-        // 停止当前动画，然后继续触发新的
-        animation_->stop();
-    }
+    // 设置触发请求,由UI任务处理
+    trigger_request_.pending = true;
+    trigger_request_.type = trigger_type;
+    trigger_request_.bird_id = 0; // 随机小鸟
 
-    const char* trigger_names[] = {"auto", "manual", "gesture"};
-    LOG_INFO("BIRD", "Bird triggered successfully");
-
-    return playRandomBird();
+    return true;
 }
 
 void BirdManager::onGestureEvent(int gesture_type) {

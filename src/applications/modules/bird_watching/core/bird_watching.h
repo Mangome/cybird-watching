@@ -28,6 +28,9 @@ bool initializeBirdWatching(lv_obj_t* display_obj = nullptr);
 // 便捷函数：更新观鸟系统（在主循环中调用）
 void updateBirdWatching();
 
+// 便捷函数：处理触发请求(在UI任务中调用)
+void processBirdTriggerRequest();
+
 // 便捷函数：手动触发小鸟
 bool triggerBird();
 

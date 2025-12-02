@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "serial_commands.h"
 #include "log_manager.h"
+#include "system/tasks/task_manager.h"
 
 // 前向声明Bird Watching便捷函数
 namespace BirdWatching {
@@ -38,6 +39,7 @@ void SerialCommands::initialize() {
     registerCommand("clear", "Clear terminal screen");
     registerCommand("tree", "Show SD card directory tree structure [path] [levels]");
     registerCommand("bird", "Bird watching commands (trigger, stats, help)");
+    registerCommand("task", "Task monitoring commands (stats, info)");
 
     LOG_INFO("CMD", "Serial command system initialized");
     Serial.println("Serial command system ready. Type 'help' for available commands.");
@@ -98,6 +100,10 @@ void SerialCommands::handleInput() {
         }
         else if (command.equals("bird")) {
             handleBirdCommand(param);
+            commandFound = true;
+        }
+        else if (command.equals("task")) {
+            handleTaskCommand(param);
             commandFound = true;
         }
 
@@ -398,6 +404,63 @@ void SerialCommands::handleBirdCommand(const String& param) {
 
     if (logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Bird command executed: " + param);
+    }
+}
+
+void SerialCommands::handleTaskCommand(const String& param) {
+    Serial.println("<<<RESPONSE_START>>>");
+
+    if (param.isEmpty() || param.equals("help")) {
+        Serial.println("Task monitoring subcommands:");
+        Serial.println("  stats      - Show task statistics (stack usage, heap)");
+        Serial.println("  info       - Show detailed task information");
+        Serial.println("  help       - Show this help");
+        Serial.println("Examples:");
+        Serial.println("  task stats  - Show task statistics");
+        Serial.println("  task info   - Show detailed info");
+    }
+    else if (param.equals("stats") || param.equals("info")) {
+        Serial.println("=== Dual-Core Task Monitor ===");
+        
+        TaskManager* taskMgr = TaskManager::getInstance();
+        if (taskMgr) {
+            Serial.println("\n--- Architecture ---");
+            Serial.println("Core 0 (Protocol Core):  UI Task");
+            Serial.println("  - LVGL GUI (200Hz)");
+            Serial.println("  - Display Driver");
+            Serial.println("  - Bird Animation");
+            Serial.println("");
+            Serial.println("Core 1 (Application Core): System Task");
+            Serial.println("  - IMU Sensors (5Hz)");
+            Serial.println("  - Serial Commands");
+            Serial.println("  - Bird Manager Logic");
+            Serial.println("  - Statistics");
+            
+            Serial.println("\n--- Task Statistics ---");
+            taskMgr->printTaskStats();
+            
+            if (param.equals("info")) {
+                Serial.println("\n--- FreeRTOS Info ---");
+                Serial.printf("Task Count: %d\n", uxTaskGetNumberOfTasks());
+                Serial.printf("Min Free Heap Ever: %u bytes\n", ESP.getMinFreeHeap());
+                Serial.printf("Heap Fragmentation: %d%%\n", 
+                    (int)(100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap())));
+            }
+        } else {
+            Serial.println("Task Manager not initialized!");
+        }
+        
+        Serial.println("=== End Monitor ===");
+    }
+    else {
+        Serial.println("Unknown task subcommand: " + param);
+        Serial.println("Use 'task help' for available subcommands");
+    }
+
+    Serial.println("<<<RESPONSE_END>>>");
+
+    if (logManager) {
+        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Task command executed: " + param);
     }
 }
 

@@ -65,6 +65,9 @@ private:
     // 定时器回调函数
     static void timerCallback(lv_timer_t* timer);
 
+    // 标志：是否在UI任务中运行
+    bool running_in_ui_task_;
+
     // 获取帧文件路径
     std::string getFramePath(uint8_t frame_index) const;
 

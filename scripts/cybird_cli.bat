@@ -31,7 +31,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM 启动CLI
-uv run python -m cybird_watching_cli.main
+uv run python -m cybird_watching_cli.main -p COM5
 
 echo.
 echo 感谢使用CybirdWatching CLI！

@@ -1,6 +1,7 @@
 #include "bird_animation.h"
 #include "system/logging/log_manager.h"
 #include "drivers/storage/sd_card/sd_card.h"
+#include "system/tasks/task_manager.h"
 #include <cstring>
 #include <cstdio>
 
@@ -16,6 +17,7 @@ BirdAnimation::BirdAnimation()
     , frame_processing_(false)
     , current_img_dsc_(nullptr)
     , current_img_data_(nullptr)
+    , running_in_ui_task_(false)
 {
 }
 
@@ -30,9 +32,35 @@ bool BirdAnimation::init(lv_obj_t* parent_obj) {
         parent_obj = lv_scr_act();
     }
 
+    // 检测是否在UI任务中运行
+    TaskManager* taskMgr = TaskManager::getInstance();
+    if (taskMgr && taskMgr->getUITaskHandle() == xTaskGetCurrentTaskHandle()) {
+        running_in_ui_task_ = true;
+        LOG_INFO("ANIM", "Running in UI task mode");
+    } else {
+        running_in_ui_task_ = false;
+        LOG_INFO("ANIM", "Running in separate task mode");
+    }
+
     // 创建或设置显示对象
     if (!display_obj_) {
+        // 注意: 必须在持有LVGL锁的情况下创建对象
+        bool needRelease = false;
+        if (!running_in_ui_task_ && taskMgr) {
+            if (taskMgr->takeLVGLMutex(1000)) {
+                needRelease = true;
+            } else {
+                LOG_ERROR("ANIM", "Failed to acquire LVGL mutex");
+                return false;
+            }
+        }
+
         display_obj_ = lv_image_create(parent_obj);
+        
+        if (needRelease) {
+            taskMgr->giveLVGLMutex();
+        }
+
         if (!display_obj_) {
             LOG_ERROR("ANIM", "Failed to create LVGL image object");
             return false;
@@ -69,12 +97,11 @@ bool BirdAnimation::loadBird(const BirdInfo& bird_info) {
 
 void BirdAnimation::startLoop() {
     if (is_playing_) {
-        LOG_WARN("ANIM", "Animation already playing, stopping previous animation");
         stop();
     }
 
     if (current_bird_.id == 0) {
-        LOG_ERROR("ANIM", "No bird loaded for animation");
+        LOG_ERROR("ANIM", "No bird loaded");
         return;
     }
 
@@ -85,16 +112,14 @@ void BirdAnimation::startLoop() {
 
     // 加载并显示第一帧
     if (!loadAndShowFrame(0)) {
-        LOG_ERROR("ANIM", "Failed to load first frame for bird");
+        LOG_ERROR("ANIM", "Failed to load first frame");
         return;
     }
 
     // 设置第一帧处理完成的时间，确保第一帧显示足够时间
     last_frame_time_ = millis();
-    LOG_INFO("ANIM", "First frame loaded successfully");
 
-      is_playing_ = true;
-    LOG_INFO("ANIM", "Starting loop animation for bird with " + String(current_frame_count_) + " frames");
+    is_playing_ = true;
 
     // 设置帧间隔为50ms
     frame_interval_ = 50;
@@ -147,43 +172,45 @@ std::string BirdAnimation::getFramePath(uint8_t frame_index) const {
 
 bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
     if (!display_obj_) {
-        LOG_ERROR("BIRD", "Display object not set");
+        LOG_ERROR("ANIM", "Display object not set");
         return false;
     }
 
     if (frame_index >= current_frame_count_) {
-        LOG_ERROR("BIRD", "Frame index out of range");
+        LOG_ERROR("ANIM", "Frame index " + String(frame_index) + " out of range");
         return false;
     }
 
     std::string frame_path = getFramePath(frame_index);
 
-    // 先尝试手动加载，因为LVGL 7.9.1对.bin文件支持有问题
-    // 静默处理以避免日志洪水
-
     // 尝试手动加载图像
     if (tryManualImageLoad(frame_path)) {
         // 强制刷新LVGL显示
         lv_obj_invalidate(display_obj_);
+        return true;
     } else {
+        LOG_WARN("ANIM", "Failed to load frame " + String(frame_index));
+        
         // 手动加载失败，使用后备颜色显示
         lv_color_t bird_color = lv_color_hex(0x808080); // 默认灰色
         switch (current_bird_.id % 8) {
-            case 1: bird_color = lv_color_hex(0x8B4513); break;
-            case 2: bird_color = lv_color_hex(0xB22222); break;
-            case 3: bird_color = lv_color_hex(0x4682B4); break;
-            case 4: bird_color = lv_color_hex(0x00008B); break;
-            case 5: bird_color = lv_color_hex(0x228B22); break;
-            case 6: bird_color = lv_color_hex(0xFFD700); break;
-            case 7: bird_color = lv_color_hex(0xFF69B4); break;
+            case 0: bird_color = lv_color_hex(0x808080); break; // 灰色
+            case 1: bird_color = lv_color_hex(0x8B4513); break; // 棕色
+            case 2: bird_color = lv_color_hex(0xB22222); break; // 红色
+            case 3: bird_color = lv_color_hex(0x4682B4); break; // 蓝色
+            case 4: bird_color = lv_color_hex(0x00008B); break; // 深蓝
+            case 5: bird_color = lv_color_hex(0x228B22); break; // 绿色
+            case 6: bird_color = lv_color_hex(0xFFD700); break; // 金色
+            case 7: bird_color = lv_color_hex(0xFF69B4); break; // 粉色
         }
 
-        lv_obj_set_style_bg_color(display_obj_, bird_color, LV_PART_MAIN);  // LVGL 9.x: 移除local函数，直接使用set_style
+        lv_obj_set_style_bg_color(display_obj_, bird_color, LV_PART_MAIN);
         lv_obj_set_style_border_width(display_obj_, 2, LV_PART_MAIN);
         lv_obj_set_style_border_color(display_obj_, lv_color_hex(0x333333), LV_PART_MAIN);
+        
+        // 注意: 返回true以继续动画循环(使用颜色动画)
+        return true;
     }
-
-    return true;
 }
 
 void BirdAnimation::playNextFrame() {
@@ -239,8 +266,6 @@ uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
 }
 
 bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
-    // 静默处理避免日志洪水
-
     // 使用项目的SD卡接口
     File file = SD.open(file_path.c_str());
     if (!file) {
@@ -248,8 +273,8 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     }
 
     size_t file_size = file.size();
+    
     if (file_size < 32) { // LVGL 9.x最小头部大小
-        LOG_ERROR("BIRD", "File too small: " + String(file_size) + " bytes");
         file.close();
         return false;
     }
@@ -318,8 +343,32 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         return false;
     }
 
-    // 读取像素数据
-    size_t bytes_read = file.read(img_data, data_size);
+    // 读取像素数据 - 分块读取以避免长时间阻塞
+    const size_t CHUNK_SIZE = 4096; // 每次读取4KB
+    size_t bytes_read = 0;
+    size_t remaining = data_size;
+    uint8_t* write_ptr = img_data;
+    
+    while (remaining > 0) {
+        size_t to_read = (remaining > CHUNK_SIZE) ? CHUNK_SIZE : remaining;
+        size_t chunk_read = file.read(write_ptr, to_read);
+        
+        if (chunk_read != to_read) {
+            LOG_ERROR("BIRD", "Failed to read chunk: " + String(chunk_read) + "/" + String(to_read));
+            file.close();
+            free(img_dsc);
+            free(img_data);
+            return false;
+        }
+        
+        bytes_read += chunk_read;
+        write_ptr += chunk_read;
+        remaining -= chunk_read;
+        
+        // 让出CPU，允许看门狗任务运行
+        vTaskDelay(1); // 1ms延迟
+    }
+    
     file.close();
 
     if (bytes_read != data_size) {
@@ -439,10 +488,14 @@ void BirdAnimation::createTestImage() {
 }
 
 void BirdAnimation::timerCallback(lv_timer_t* timer) {
-    BirdAnimation* animation = static_cast<BirdAnimation*>(lv_timer_get_user_data(timer));  // LVGL 9.x: 使用lv_timer_get_user_data
-    if (animation && animation->is_playing_) {
-        animation->playNextFrame();
+    BirdAnimation* animation = static_cast<BirdAnimation*>(lv_timer_get_user_data(timer));
+    if (!animation || !animation->is_playing_) {
+        return;
     }
+
+    // LVGL定时器在UI任务中执行,已经持有互斥锁
+    // 直接调用播放下一帧
+    animation->playNextFrame();
 }
 
 } // namespace BirdWatching

@@ -1,2 +1,2 @@
 cd ../
-pio run --target upload && pio device monitor --port COM3 --baud 115200
+pio run --target upload && pio device monitor --port COM5 --baud 115200

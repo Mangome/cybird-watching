@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "esp_task_wdt.h"
 #include "drivers/display/display.h"
 #include "drivers/sensors/imu/imu.h"
 #include "drivers/sensors/ambient/ambient.h"
@@ -12,6 +13,7 @@
 #include "system/logging/log_manager.h"
 #include "system/commands/serial_commands.h"
 #include "applications/modules/bird_watching/core/bird_watching.h"
+#include "system/tasks/task_manager.h"
 
 /*** Component objects ***/
 Display screen;
@@ -22,16 +24,21 @@ Network wifi;
 
 lv_ui guider_ui;
 
+/*** Task Manager ***/
+TaskManager* taskManager = nullptr;
+
 void setup()
 {
+    // 配置看门狗超时时间为10秒（避免图像加载时触发看门狗）
+    esp_task_wdt_init(10, true);
     // 初始化串口通信
     Serial.begin(115200);
     delay(1000); // 等待串口稳定
 
     // 立即输出标识，不依赖日志系统
     Serial.println("=== CybirdWatching Starting ===");
-    Serial.println("*** NEW FIRMWARE v2.0 WITH SERIAL COMMANDS ***");
-    Serial.println("This should be visible if new firmware is running!");
+    Serial.println("*** FIRMWARE v3.0 - DUAL CORE ARCHITECTURE ***");
+    Serial.println("Core 0: UI Rendering | Core 1: System Logic");
     delay(1000);
 
     // 初始化日志系统 - 先只用串口输出，等SD卡初始化完成后再启用SD卡
@@ -39,7 +46,7 @@ void setup()
     logManager->initialize(LogManager::LM_LOG_INFO, LogManager::OUTPUT_SERIAL);
 
     LOG_INFO("MAIN", "=== CybirdWatching Starting ===");
-    LOG_INFO("MAIN", "*** NEW FIRMWARE v2.0 WITH SERIAL COMMANDS ***");
+    LOG_INFO("MAIN", "*** FIRMWARE v3.0 - DUAL CORE ARCHITECTURE ***");
     delay(1000);
     LOG_INFO("MAIN", "Serial communication OK");
 
@@ -100,7 +107,17 @@ void setup()
     LOG_INFO("MAIN", "GUI created");
     setup_ui(&guider_ui);
 
-    /*** Init Bird Watching System ***/
+    /*** Init Task Manager FIRST (creates LVGL mutex) ***/
+    LOG_INFO("MAIN", "Initializing Task Manager...");
+    taskManager = TaskManager::getInstance();
+    
+    if (!taskManager->initialize()) {
+        LOG_ERROR("MAIN", "Failed to initialize Task Manager");
+        return;
+    }
+    LOG_INFO("MAIN", "Task Manager initialized (LVGL mutex created)");
+
+    /*** Init Bird Watching System (requires LVGL mutex) ***/
     LOG_INFO("MAIN", "Initializing Bird Watching System...");
     // 传入scenes_canvas给BirdManager作为显示对象
     if (BirdWatching::initializeBirdWatching(guider_ui.scenes_canvas)) {
@@ -109,24 +126,42 @@ void setup()
         LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
     }
 
-    LOG_INFO("MAIN", "Setup completed, entering loop...");
-}
+    /*** Start Dual-Core Tasks ***/
+    LOG_INFO("MAIN", "Starting dual-core tasks...");
 
-int frame_id = 0;
-char buf[100];
-unsigned long lastHeartbeat = 0;
+    if (!taskManager->startTasks()) {
+        LOG_ERROR("MAIN", "Failed to start tasks");
+        return;
+    }
+    LOG_INFO("MAIN", "Dual-core tasks started successfully");
+    LOG_INFO("MAIN", "  - Core 0: UI Task (LVGL + Display + Animation)");
+    LOG_INFO("MAIN", "  - Core 1: System Task (Sensors + Commands + Business Logic)");
+
+    LOG_INFO("MAIN", "Setup completed, tasks running...");
+    
+    // 打印任务统计信息
+    delay(2000);
+    taskManager->printTaskStats();
+}
 
 void loop()
 {
-    // run this as often as possible
-    screen.routine();
-
-    // 200 means update IMU data every 200ms
-    mpu.update(200);
-
-    // 更新Bird Watching系统
-    BirdWatching::updateBirdWatching();
-
-    // 处理串口命令
-    SerialCommands::getInstance()->handleInput();
+    // 在双核架构下，主loop可以空闲或处理其他低优先级任务
+    // 所有核心功能已经在FreeRTOS任务中运行：
+    // - Core 0: UI Task (200Hz - LVGL + Display)
+    // - Core 1: System Task (100Hz - Sensors + Commands + Business Logic)
+    
+    // 可选：定期打印任务统计信息
+    static unsigned long lastStatsTime = 0;
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
+        if (taskManager) {
+            taskManager->printTaskStats();
+        }
+        lastStatsTime = currentTime;
+    }
+    
+    // 让出CPU给FreeRTOS调度器
+    delay(1000);
 }
