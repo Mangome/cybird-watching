@@ -4,6 +4,12 @@
 #include <cstdlib>
 #include <ctime>
 
+// 声明外部C接口，用于访问GUI对象
+extern "C" {
+    #include "applications/gui/core/gui_guider.h"
+    extern lv_ui guider_ui;
+}
+
 namespace BirdWatching {
 
 BirdManager::BirdManager()
@@ -12,6 +18,7 @@ BirdManager::BirdManager()
     , animation_(nullptr)
     , selector_(nullptr)
     , statistics_(nullptr)
+    , display_obj_(nullptr)
     , last_auto_trigger_time_(0)
     , last_stats_save_time_(0)
     , system_start_time_(0)
@@ -37,6 +44,9 @@ BirdManager::~BirdManager() {
 
 bool BirdManager::initialize(lv_obj_t* display_obj) {
     LOG_INFO("BIRD", "Initializing Bird Watching Manager...");
+
+    // 保存显示对象引用
+    display_obj_ = display_obj;
 
     // 初始化随机数生成器
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -250,6 +260,12 @@ bool BirdManager::playBird(uint16_t bird_id, bool record_stats) {
         return false;
     }
 
+    // 检查是否为新小鸟（在记录统计之前检查）
+    bool is_new_bird = false;
+    if (record_stats && statistics_) {
+        is_new_bird = (statistics_->getEncounterCount(bird_id) == 0);
+    }
+
     // 加载小鸟动画
     if (!animation_->loadBird(*bird_info)) {
         LOG_ERROR("BIRD", "Failed to load bird");
@@ -262,6 +278,11 @@ bool BirdManager::playBird(uint16_t bird_id, bool record_stats) {
     // 记录统计数据（如果需要）
     if (record_stats && statistics_) {
         statistics_->recordEncounter(bird_id);
+    }
+
+    // 显示小鸟信息
+    if (record_stats) {
+        showBirdInfo(bird_id, bird_info->name, is_new_bird);
     }
 
     LOG_INFO("BIRD", (String("Playing bird animation (ID: ") + String(bird_id) + 
@@ -361,6 +382,50 @@ uint8_t BirdManager::detectFrameCount(uint16_t bird_id) const {
         return 0;
     }
     return animation_->detectFrameCount(bird_id);
+}
+
+void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new) {
+    if (!guider_ui.scenes_bird_info_label) {
+        LOG_ERROR("BIRD", "Bird info label not available");
+        return;
+    }
+
+    // 获取当前次数（已经记录过了，所以需要获取最新的count）
+    int count = statistics_ ? statistics_->getEncounterCount(bird_id) : 0;
+
+    // 构建信息文本
+    // 使用 Noto Sans SC 字体显示中文
+    // LVGL颜色格式: #RRGGBB text#
+    char info_text[256];
+    if (is_new) {
+        // 新小鸟: "加新 {小鸟名字}！"
+        snprintf(info_text, sizeof(info_text), 
+                 "#FFFFFF 加新 # #87CEEB %s# #FFFFFF ！#", 
+                 bird_name.c_str());
+    } else {
+        // 已见过: "{小鸟名字} 来了 {count} 次！"
+        snprintf(info_text, sizeof(info_text), 
+                 "#87CEEB %s# #FFFFFF 来了 # #87CEEB %d# #FFFFFF 次！#", 
+                 bird_name.c_str(), count);
+    }
+
+    // 启用重新着色模式
+    lv_label_set_recolor(guider_ui.scenes_bird_info_label, true);
+    
+    // 设置文本
+    lv_label_set_text(guider_ui.scenes_bird_info_label, info_text);
+    
+    // 显示标签
+    lv_obj_clear_flag(guider_ui.scenes_bird_info_label, LV_OBJ_FLAG_HIDDEN);
+    
+    // 记录日志
+    char log_msg[128];
+    if (is_new) {
+        snprintf(log_msg, sizeof(log_msg), "Displayed bird info: %s (NEW)", bird_name.c_str());
+    } else {
+        snprintf(log_msg, sizeof(log_msg), "Displayed bird info: %s (x%d)", bird_name.c_str(), count);
+    }
+    LOG_INFO("BIRD", log_msg);
 }
 
 } // namespace BirdWatching

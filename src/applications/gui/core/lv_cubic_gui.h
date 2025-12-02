@@ -14,7 +14,7 @@ extern "C" {
 	extern lv_obj_t* scr2;
 
 
-	void lv_holo_cubic_gui(void);
+	void lv_init_gui(void);
 
 
 #ifdef __cplusplus

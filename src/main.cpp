@@ -99,7 +99,7 @@ void setup()
 
     /*** Inflate GUI objects ***/
     LOG_INFO("MAIN", "Creating GUI...");
-    lv_holo_cubic_gui();
+    lv_init_gui();
     LOG_INFO("MAIN", "GUI created");
     setup_ui(&guider_ui);
 

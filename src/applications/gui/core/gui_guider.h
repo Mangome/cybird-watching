@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #include "lvgl.h"
-#include "guider_fonts.h"
+#include "config/guider_fonts.h"
 
 	typedef struct
 	{
@@ -13,6 +13,7 @@ extern "C" {
 		lv_obj_t* home_cpicker0;
 		lv_obj_t* scenes;
 		lv_obj_t* scenes_canvas;
+		lv_obj_t* scenes_bird_info_label;
 	}lv_ui;
 
 	void setup_ui(lv_ui* ui);

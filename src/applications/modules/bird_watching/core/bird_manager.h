@@ -11,6 +11,9 @@
 
 namespace BirdWatching {
 
+// 小鸟信息显示配置
+#define BIRD_INFO_FONT_SIZE 16  // 字体大小，方便调整
+
 // 触发类型枚举
 enum TriggerType {
     TRIGGER_AUTO = 0,       // 自动触发
@@ -70,6 +73,9 @@ public:
     // 检测小鸟的帧数
     uint8_t detectFrameCount(uint16_t bird_id) const;
 
+    // 显示小鸟信息（在右下角）
+    void showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new);
+
 private:
     bool initialized_;                           // 初始化状态
     bool first_bird_loaded_;                     // 首次小鸟是否已加载
@@ -77,6 +83,7 @@ private:
     BirdAnimation* animation_;                   // 动画播放器
     BirdSelector* selector_;                     // 小鸟选择器
     BirdStatistics* statistics_;                 // 统计系统
+    lv_obj_t* display_obj_;                      // 显示对象（用于访问GUI）
 
     uint32_t last_auto_trigger_time_;            // 上次自动触发时间
     uint32_t last_stats_save_time_;              // 上次统计数据保存时间

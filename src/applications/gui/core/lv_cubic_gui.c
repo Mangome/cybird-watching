@@ -6,7 +6,7 @@
 
 lv_obj_t* scr;
 
-void lv_holo_cubic_gui(void)
+void lv_init_gui(void)
 {
 	static lv_style_t default_style;
 	lv_style_init(&default_style);

@@ -9,6 +9,40 @@
 #include "Arduino.h"
 #include "bird_animation_bridge.h"
 
+// 小鸟信息显示配置
+#define BIRD_INFO_USE_CHINESE_FONT 1  // 1: 使用中文字体, 0: 使用英文字体
+#define BIRD_INFO_FONT_SIZE 16  // 字体大小（如需修改，需重新生成对应大小的字体文件）
+
+// 字体声明（根据大小自动选择对应的字体）
+// 注意：修改 BIRD_INFO_FONT_SIZE 后，需要生成对应的字体文件：lv_font_notosanssc_XX.c
+#if BIRD_INFO_USE_CHINESE_FONT
+    #if BIRD_INFO_FONT_SIZE == 12
+        #define BIRD_INFO_FONT lv_font_notosanssc_12
+    #elif BIRD_INFO_FONT_SIZE == 14
+        #define BIRD_INFO_FONT lv_font_notosanssc_14
+    #elif BIRD_INFO_FONT_SIZE == 16
+        #define BIRD_INFO_FONT lv_font_notosanssc_16
+    #elif BIRD_INFO_FONT_SIZE == 18
+        #define BIRD_INFO_FONT lv_font_notosanssc_18
+    #elif BIRD_INFO_FONT_SIZE == 20
+        #define BIRD_INFO_FONT lv_font_notosanssc_20
+    #else
+        #define BIRD_INFO_FONT lv_font_notosanssc_16  // 默认16号
+    #endif
+#else
+    #if BIRD_INFO_FONT_SIZE == 14
+        #define BIRD_INFO_FONT lv_font_montserrat_14
+    #elif BIRD_INFO_FONT_SIZE == 16
+        #define BIRD_INFO_FONT lv_font_montserrat_16
+    #elif BIRD_INFO_FONT_SIZE == 18
+        #define BIRD_INFO_FONT lv_font_montserrat_18
+    #elif BIRD_INFO_FONT_SIZE == 20
+        #define BIRD_INFO_FONT lv_font_montserrat_20
+    #else
+        #define BIRD_INFO_FONT lv_font_montserrat_14  // 默认14号
+    #endif
+#endif
+
 
 void setup_screnes(lv_ui* ui)
 {
@@ -49,4 +83,15 @@ void setup_screnes(lv_ui* ui)
 
 	// 确保对象可见
 	lv_obj_clear_flag(ui->scenes_canvas, LV_OBJ_FLAG_HIDDEN);
+
+	// 创建小鸟信息标签（在右下角显示）
+	ui->scenes_bird_info_label = lv_label_create(ui->scenes);
+	lv_obj_set_style_text_color(ui->scenes_bird_info_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+	
+	// 设置字体（根据配置自动选择）
+	lv_obj_set_style_text_font(ui->scenes_bird_info_label, &BIRD_INFO_FONT, LV_PART_MAIN);
+	
+	lv_label_set_text(ui->scenes_bird_info_label, "");
+	lv_obj_align(ui->scenes_bird_info_label, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+	lv_obj_add_flag(ui->scenes_bird_info_label, LV_OBJ_FLAG_HIDDEN); // 默认隐藏
 }
