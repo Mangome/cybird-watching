@@ -13,7 +13,6 @@ BirdAnimation::BirdAnimation()
     , current_frame_count_(0)
     , play_timer_(nullptr)
     , is_playing_(false)
-    , frame_interval_(200)
     , frame_processing_(false)
     , current_img_dsc_(nullptr)
     , current_img_data_(nullptr)
@@ -120,9 +119,6 @@ void BirdAnimation::startLoop() {
     last_frame_time_ = millis();
 
     is_playing_ = true;
-
-    // 设置帧间隔为50ms
-    frame_interval_ = 50;
 
     // 创建播放定时器，10ms后触发下一帧
     play_timer_ = lv_timer_create(timerCallback, 10, this); // LVGL 9.x: 移除优先级参数
