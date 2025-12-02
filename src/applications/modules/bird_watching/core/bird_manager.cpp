@@ -52,8 +52,7 @@ bool BirdManager::initialize(lv_obj_t* display_obj) {
 
     initialized_ = true;
     LOG_INFO("BIRD", "Bird Watching Manager initialized successfully");
-    LOG_INFO("BIRD", "Auto trigger interval configured");
-    LOG_INFO("BIRD", "Gesture trigger enabled");
+    LOG_INFO("BIRD", "Gesture trigger enabled - shake to summon birds");
 
     return true;
 }
@@ -65,14 +64,6 @@ void BirdManager::update() {
 
     // 注意: 此函数在System任务中调用
     // 不要直接操作LVGL对象,只设置触发请求
-
-    // 处理自动触发
-    handleAutoTrigger();
-
-    // 更新手势检测
-    if (config_.enable_gesture_trigger) {
-        updateGestureDetection();
-    }
 
     // 定期保存统计数据(不涉及LVGL)
     saveStatisticsIfNeeded();
@@ -184,15 +175,8 @@ bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
 }
 
 void BirdManager::handleAutoTrigger() {
-    uint32_t current_time = getCurrentTime();
-    uint32_t time_since_last_trigger = current_time - last_auto_trigger_time_;
-
-    if (time_since_last_trigger >= (config_.auto_trigger_interval * 1000)) {
-        LOG_DEBUG("BIRD", "Auto trigger time reached");
-        if (triggerBird(TRIGGER_AUTO)) {
-            last_auto_trigger_time_ = current_time;
-        }
-    }
+    // 已移除自动定时触发逻辑，改为仅通过IMU摇晃手势触发
+    // 此函数保留以便将来可能需要的功能扩展
 }
 
 bool BirdManager::playRandomBird() {
@@ -227,20 +211,8 @@ bool BirdManager::playRandomBird() {
 }
 
 void BirdManager::updateGestureDetection() {
-    // 暂时简化手势检测，使用基本的前倾/后倾逻辑
-    // 这里直接调用现有的onGestureEvent方法，参数来自MPU的原始数据
-    // TODO: 完善完整的手势检测集成
-
-    // 暂时使用简化版本，定期触发前倾手势进行测试
-    static unsigned long last_test_time = 0;
-    unsigned long current_time = millis();
-
-    // 每10秒模拟一次前倾手势进行测试
-    if (current_time - last_test_time > 10000) {
-        LOG_INFO("BIRD", "Simulated forward tilt gesture for testing");
-        onGestureEvent(0); // 0 = 向前倾斜
-        last_test_time = current_time;
-    }
+    // 手势检测已集成到TaskManager的系统任务中
+    // 通过IMU.detectGesture()实时检测并触发相应事件
 }
 
 void BirdManager::handleGesture(GestureType gesture) {
@@ -253,18 +225,6 @@ void BirdManager::handleGesture(GestureType gesture) {
         case GESTURE_BACKWARD_TILT:
             LOG_INFO("BIRD", "Backward tilt detected, showing statistics");
             showStatistics();
-            break;
-
-        case GESTURE_SHAKE:
-            LOG_INFO("BIRD", "Shake detected, random bird trigger");
-            triggerBird(TRIGGER_GESTURE);
-            break;
-
-        case GESTURE_DOUBLE_TILT:
-            LOG_INFO("BIRD", "Double tilt detected, resetting statistics");
-            if (statistics_) {
-                statistics_->resetStats();
-            }
             break;
 
         default:

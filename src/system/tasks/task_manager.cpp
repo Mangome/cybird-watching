@@ -272,6 +272,14 @@ void TaskManager::systemTaskFunction(void* parameter)
         if (currentTime - lastMPUUpdate >= MPU_UPDATE_INTERVAL) {
             mpu.update(0); // 不使用内部延时
             lastMPUUpdate = currentTime;
+
+            // 检测手势并触发相应事件
+            GestureType gesture = mpu.detectGesture();
+            if (gesture == GESTURE_LEFT_RIGHT_TILT) {
+                // 左右倾斜 - 触发小鸟（10秒CD）
+                LOG_INFO("SYS_TASK", "Left/Right tilt detected, triggering bird");
+                BirdWatching::triggerBird();
+            }
         }
 
         // 更新Bird Watching系统
