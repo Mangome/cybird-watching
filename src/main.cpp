@@ -92,10 +92,10 @@ void setup()
     lv_fs_if_init();
     LOG_INFO("MAIN", "LVGL file system initialized");
 
-    LOG_INFO("MAIN", "Reading WiFi configuration...");
-    String ssid = tf.readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid
-    String password = tf.readFileLine("/wifi.txt", 2);    // line-2 for WiFi password
-    LOG_INFO("MAIN", "WiFi configuration read");
+    // LOG_INFO("MAIN", "Reading WiFi configuration...");
+    // String ssid = tf.readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid
+    // String password = tf.readFileLine("/wifi.txt", 2);    // line-2 for WiFi password
+    // LOG_INFO("MAIN", "WiFi configuration read");
 
     /*** Inflate GUI objects ***/
     LOG_INFO("MAIN", "Creating GUI...");
@@ -115,8 +115,8 @@ void setup()
 
     /*** Init Bird Watching System (requires LVGL mutex) ***/
     LOG_INFO("MAIN", "Initializing Bird Watching System...");
-    // 传入scenes_canvas给BirdManager作为显示对象
-    if (BirdWatching::initializeBirdWatching(guider_ui.scenes_canvas)) {
+    // 传入scenes给BirdManager作为显示对象（统计界面的父对象）
+    if (BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
         LOG_INFO("MAIN", "Bird Watching System initialized successfully");
     } else {
         LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");

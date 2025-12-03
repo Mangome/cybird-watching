@@ -234,9 +234,14 @@ void BirdManager::saveConfig() {
 }
 
 bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
-    // 初始化动画播放器
+    // display_obj现在是scenes对象
+    // 需要从scenes中获取scenes_canvas作为动画显示对象
+    // guider_ui已在文件顶部通过extern "C"声明
+    lv_obj_t* canvas_obj = guider_ui.scenes_canvas;
+    
+    // 初始化动画播放器（使用scenes_canvas）
     animation_ = new BirdAnimation();
-    if (!animation_ || !animation_->init(display_obj)) {
+    if (!animation_ || !animation_->init(canvas_obj)) {
         LOG_ERROR("BIRD", "Failed to initialize bird animation system");
         return false;
     }
@@ -255,7 +260,7 @@ bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
         return false;
     }
 
-    // 初始化统计界面
+    // 初始化统计界面（使用scenes作为父对象）
     stats_view_ = new StatsView();
     if (!stats_view_ || !stats_view_->initialize(display_obj, statistics_, selector_)) {
         LOG_ERROR("BIRD", "Failed to initialize stats view");

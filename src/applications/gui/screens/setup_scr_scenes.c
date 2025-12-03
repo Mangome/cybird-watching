@@ -66,17 +66,7 @@ void setup_screnes(lv_ui* ui)
 	lv_obj_add_style(ui->scenes, &style_scenes_canvas_main, LV_PART_MAIN);
 
 	// 触发小鸟动画（通过BirdManager管理，避免多实例问题）
-	bool success = bird_animation_load_image_to_canvas(ui->scenes_canvas, 1001, 0);
-
-	if (!success) {
-		// 如果触发失败，显示蓝色背景作为占位符
-		lv_obj_remove_style_all(ui->scenes_canvas);
-		lv_obj_set_style_bg_color(ui->scenes_canvas, lv_color_hex(0x0080FF), LV_PART_MAIN);
-		lv_obj_set_style_bg_opa(ui->scenes_canvas, LV_OPA_COVER, LV_PART_MAIN);
-		lv_obj_set_style_border_width(ui->scenes_canvas, 3, LV_PART_MAIN);
-		lv_obj_set_style_border_color(ui->scenes_canvas, lv_color_hex(0xFF0000), LV_PART_MAIN);
-		lv_obj_set_style_border_opa(ui->scenes_canvas, LV_OPA_COVER, LV_PART_MAIN);
-	}
+	bird_animation_load_image_to_canvas(ui->scenes_canvas, 1001, 0);
 
 	// 设置对象位置和大小 - 覆盖整个屏幕
 	lv_obj_set_size(ui->scenes_canvas, 240, 240); // 设置为全屏大小

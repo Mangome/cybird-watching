@@ -207,7 +207,7 @@ GestureType IMU::detectGesture()
 		} else if (!forward_hold_triggered && (current_time - forward_hold_start >= 1000)) {
 			// 保持3秒，触发
 			forward_hold_triggered = true;
-			Serial.println("Gesture detected: FORWARD_HOLD (3s)");
+			Serial.println("Gesture detected: FORWARD_HOLD (1s)");
 			return GESTURE_FORWARD_HOLD;
 		}
 	} else {
@@ -225,7 +225,7 @@ GestureType IMU::detectGesture()
 		} else if (!backward_hold_triggered && (current_time - backward_hold_start >= 1000)) {
 			// 保持3秒，触发
 			backward_hold_triggered = true;
-			Serial.println("Gesture detected: BACKWARD_HOLD (3s)");
+			Serial.println("Gesture detected: BACKWARD_HOLD (1s)");
 			return GESTURE_BACKWARD_HOLD;
 		}
 	} else {
