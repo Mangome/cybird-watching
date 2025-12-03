@@ -198,13 +198,13 @@ GestureType IMU::detectGesture()
 
 	unsigned long current_time = millis();
 
-	// 检测持续前倾手势（保持3秒）
+	// 检测持续前倾手势（保持1秒）
 	if (isForwardTilt()) {
 		if (forward_hold_start == 0) {
 			// 开始前倾
 			forward_hold_start = current_time;
 			forward_hold_triggered = false;
-		} else if (!forward_hold_triggered && (current_time - forward_hold_start >= 3000)) {
+		} else if (!forward_hold_triggered && (current_time - forward_hold_start >= 1000)) {
 			// 保持3秒，触发
 			forward_hold_triggered = true;
 			Serial.println("Gesture detected: FORWARD_HOLD (3s)");
@@ -216,13 +216,13 @@ GestureType IMU::detectGesture()
 		forward_hold_triggered = false;
 	}
 	
-	// 检测持续后倾手势（保持3秒）
+	// 检测持续后倾手势（保持1秒）
 	if (isBackwardTilt()) {
 		if (backward_hold_start == 0) {
 			// 开始后倾
 			backward_hold_start = current_time;
 			backward_hold_triggered = false;
-		} else if (!backward_hold_triggered && (current_time - backward_hold_start >= 3000)) {
+		} else if (!backward_hold_triggered && (current_time - backward_hold_start >= 1000)) {
 			// 保持3秒，触发
 			backward_hold_triggered = true;
 			Serial.println("Gesture detected: BACKWARD_HOLD (3s)");
