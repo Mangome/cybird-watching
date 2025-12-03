@@ -15,6 +15,7 @@ StatsView::StatsView()
     , title_label_(nullptr)
     , prev_label_(nullptr)
     , next_label_(nullptr)
+    , page_indicator_(nullptr)
     , statistics_(nullptr)
     , selector_(nullptr)
 {
@@ -74,19 +75,26 @@ void StatsView::createUI(lv_obj_t* parent) {
         lv_label_set_recolor(bird_labels_[i], true); // 启用颜色标记
     }
 
-    // 创建"上一页"标签（左对齐）
+    // 创建\"上一页\"标签（左对齐）
     prev_label_ = lv_label_create(container_);
     lv_label_set_text(prev_label_, "上一页");
     lv_obj_set_style_text_color(prev_label_, lv_color_hex(0x888888), LV_PART_MAIN);
     lv_obj_set_style_text_font(prev_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
     lv_obj_align(prev_label_, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
-    // 创建"下一页"标签（右对齐）
+    // 创建\"下一页\"标签（右对齐）
     next_label_ = lv_label_create(container_);
     lv_label_set_text(next_label_, "下一页");
     lv_obj_set_style_text_color(next_label_, lv_color_hex(0x888888), LV_PART_MAIN);
     lv_obj_set_style_text_font(next_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
     lv_obj_align(next_label_, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+
+    // 创建页码标识标签（底部居中）
+    page_indicator_ = lv_label_create(container_);
+    lv_label_set_text(page_indicator_, "1/1");
+    lv_obj_set_style_text_color(page_indicator_, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_font(page_indicator_, &lv_font_notosanssc_16, LV_PART_MAIN);
+    lv_obj_align(page_indicator_, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
 
 void StatsView::show() {
@@ -207,6 +215,11 @@ void StatsView::updateBirdList() {
     } else {
         lv_obj_set_style_text_color(next_label_, lv_color_hex(0x666666), LV_PART_MAIN);
     }
+
+    // 更新页码标识
+    char page_text[16];
+    snprintf(page_text, sizeof(page_text), "%d/%d", current_page_ + 1, total_pages_);
+    lv_label_set_text(page_indicator_, page_text);
 }
 
 std::string StatsView::getBirdName(uint16_t bird_id) const {

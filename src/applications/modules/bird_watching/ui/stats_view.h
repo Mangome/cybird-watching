@@ -45,10 +45,11 @@ private:
     
     // LVGL 对象
     lv_obj_t* container_;          // 容器对象
-    lv_obj_t* title_label_;        // 标题："观鸟统计"
+    lv_obj_t* title_label_;        // 标题：\"观鸟统计\"
     lv_obj_t* bird_labels_[5];     // 5行小鸟信息
-    lv_obj_t* prev_label_;         // "上一页"标签
-    lv_obj_t* next_label_;         // "下一页"标签
+    lv_obj_t* prev_label_;         // \"上一页\"标签
+    lv_obj_t* next_label_;         // \"下一页\"标签
+    lv_obj_t* page_indicator_;     // 页码标识标签
     
     // 数据引用
     BirdStatistics* statistics_;
