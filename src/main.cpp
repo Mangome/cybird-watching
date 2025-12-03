@@ -99,9 +99,8 @@ void setup()
 
     /*** Inflate GUI objects ***/
     LOG_INFO("MAIN", "Creating GUI...");
-    lv_init_gui();
-    LOG_INFO("MAIN", "GUI created");
-    setup_ui(&guider_ui);
+    setup_ui(&guider_ui);  // 创建UI界面(包括scenes)
+    LOG_INFO("MAIN", "GUI UI created");
 
     /*** Init Task Manager FIRST (creates LVGL mutex) ***/
     LOG_INFO("MAIN", "Initializing Task Manager...");
@@ -132,6 +131,16 @@ void setup()
     LOG_INFO("MAIN", "Dual-core tasks started successfully");
     LOG_INFO("MAIN", "  - Core 0: UI Task (LVGL + Display + Animation)");
     LOG_INFO("MAIN", "  - Core 1: System Task (Sensors + Commands + Business Logic)");
+
+    // ⚠️ 重要：在UI任务启动后,先加载默认屏幕(避免花屏),再尝试加载logo
+    LOG_INFO("MAIN", "Loading default screen...");
+    lv_scr_load(guider_ui.scenes);  // 先显示黑色背景的小鸟界面
+    delay(100);  // 等待渲染完成
+    LOG_INFO("MAIN", "Default screen loaded");
+    
+    LOG_INFO("MAIN", "Loading and displaying logo...");
+    lv_init_gui();  // 尝试加载logo(如果SD卡可用),否则保持在小鸟界面
+    LOG_INFO("MAIN", "Logo initialized");
 
     LOG_INFO("MAIN", "Setup completed, tasks running...");
     

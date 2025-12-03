@@ -5,6 +5,7 @@
 #include "drivers/io/rgb_led/rgb_led.h"
 #include "system/commands/serial_commands.h"
 #include "applications/modules/bird_watching/core/bird_watching.h"
+#include "applications/gui/core/lv_cubic_gui.h"
 
 // 外部对象引用(在main.cpp中定义)
 extern Display screen;
@@ -204,6 +205,9 @@ void TaskManager::uiTaskFunction(void* parameter)
 
         // 获取LVGL互斥锁并更新UI
         if (manager->takeLVGLMutex(10)) {
+            // 检查logo显示超时（必须在UI任务中执行）
+            lv_check_logo_timeout();
+            
             // 处理BirdWatching触发请求(必须在UI任务中执行)
             // 注意: 图像加载可能耗时较长，但已优化为分块加载
             BirdWatching::processBirdTriggerRequest();
