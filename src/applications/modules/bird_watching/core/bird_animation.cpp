@@ -17,6 +17,9 @@ BirdAnimation::BirdAnimation()
     , frame_processing_(false)
     , current_img_dsc_(nullptr)
     , current_img_data_(nullptr)
+    , next_img_dsc_(nullptr)
+    , next_img_data_(nullptr)
+    , next_frame_ready_(false)
     , running_in_ui_task_(false)
 {
 }
@@ -130,15 +133,15 @@ void BirdAnimation::startLoop() {
 
     is_playing_ = true;
 
-    // 创建播放定时器，10ms后触发下一帧
-    play_timer_ = lv_timer_create(timerCallback, 10, this); // LVGL 9.x: 移除优先级参数
+    // 创建播放定时器，50ms周期检查（20FPS轮询，实际帧率由last_frame_time_控制）
+    play_timer_ = lv_timer_create(timerCallback, 50, this);
     if (!play_timer_) {
         LOG_ERROR("ANIM", "Failed to create animation timer");
         is_playing_ = false;
         return;
     }
 
-    LOG_INFO("ANIM", "Animation timer created successfully");
+    LOG_INFO("ANIM", "Animation started at 8 FPS (125ms/frame)");
 }
 
 void BirdAnimation::stop() {
@@ -224,30 +227,71 @@ void BirdAnimation::playNextFrame() {
         return;
     }
 
-    // 标记开始处理帧
-    frame_processing_ = true;
-
-    current_frame_++;
-
-    // 循环播放：当到达最后一帧时回到第一帧
-    if (current_frame_ >= current_frame_count_) {
-        current_frame_ = 0;  // 回到第一帧继续循环
-    }
-
-    // 加载并显示下一帧
-    if (!loadAndShowFrame(current_frame_)) {
-        stop();
+    // 检查是否到了播放下一帧的时间（8 FPS = 125ms/帧）
+    uint32_t now = millis();
+    const uint32_t FRAME_INTERVAL_MS = 125; // 8 FPS
+    
+    if (now - last_frame_time_ < FRAME_INTERVAL_MS) {
+        // 还没到时间，但可以利用这段时间预加载下一帧
+        if (!next_frame_ready_) {
+            uint8_t next_frame = (current_frame_ + 1) % current_frame_count_;
+            preloadFrameToBuffer(next_frame, &next_img_dsc_, &next_img_data_);
+            if (next_img_dsc_ && next_img_data_) {
+                next_frame_ready_ = true;
+            }
+        }
         return;
     }
 
-    // 设置下一帧的定时器：50ms后播放下一帧
-    frame_processing_ = false;
+    // 标记开始处理帧
+    frame_processing_ = true;
+    uint32_t frame_start = millis();
 
-    // 重新设置定时器，50ms后触发下一帧
-    if (play_timer_) {
-        lv_timer_del(play_timer_);
+    current_frame_++;
+    if (current_frame_ >= current_frame_count_) {
+        current_frame_ = 0;
     }
-    play_timer_ = lv_timer_create(timerCallback, 10, this);
+
+    // 如果下一帧已预加载，直接使用
+    if (next_frame_ready_) {
+        // 释放当前帧
+        if (current_img_data_) free(current_img_data_);
+        if (current_img_dsc_) free(current_img_dsc_);
+        
+        // 交换缓冲区
+        current_img_dsc_ = next_img_dsc_;
+        current_img_data_ = next_img_data_;
+        next_img_dsc_ = nullptr;
+        next_img_data_ = nullptr;
+        next_frame_ready_ = false;
+        
+        // 显示已加载的帧
+        lv_image_set_src(display_obj_, current_img_dsc_);
+        
+        // 设置缩放和位置
+        lv_img_set_pivot(display_obj_, current_img_dsc_->header.w / 2, current_img_dsc_->header.h / 2);
+        lv_img_set_zoom(display_obj_, 512); // 2.0x
+        lv_obj_center(display_obj_);
+        lv_obj_clear_flag(display_obj_, LV_OBJ_FLAG_HIDDEN);
+        
+        uint32_t display_time = millis() - frame_start;
+        LOG_DEBUG("ANIM", "Frame " + String(current_frame_) + " from buffer: " + String(display_time) + "ms");
+    } else {
+        // 下一帧未预加载，实时加载
+        if (!loadAndShowFrame(current_frame_)) {
+            stop();
+            frame_processing_ = false;
+            return;
+        }
+        
+        uint32_t load_time = millis() - frame_start;
+        if (load_time > FRAME_INTERVAL_MS) {
+            LOG_WARN("ANIM", "Frame load slow: " + String(load_time) + "ms (target: " + String(FRAME_INTERVAL_MS) + "ms)");
+        }
+    }
+
+    last_frame_time_ = millis();
+    frame_processing_ = false;
 }
 
 
@@ -329,37 +373,8 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         return false;
     }
 
-    // 读取像素数据 - 优化分块读取策略
-    const size_t CHUNK_SIZE = 16384; // 增大到16KB以减少延迟次数
-    size_t bytes_read = 0;
-    size_t remaining = data_size;
-    uint8_t* write_ptr = img_data;
-    uint32_t last_yield = millis();
-    
-    while (remaining > 0) {
-        size_t to_read = (remaining > CHUNK_SIZE) ? CHUNK_SIZE : remaining;
-        size_t chunk_read = file.read(write_ptr, to_read);
-        
-        if (chunk_read != to_read) {
-            LOG_ERROR("BIRD", "Failed to read chunk: " + String(chunk_read) + "/" + String(to_read));
-            file.close();
-            free(img_dsc);
-            free(img_data);
-            return false;
-        }
-        
-        bytes_read += chunk_read;
-        write_ptr += chunk_read;
-        remaining -= chunk_read;
-        
-        // 只在必要时让出CPU（每50ms或每64KB）
-        uint32_t now = millis();
-        if (now - last_yield >= 50 || bytes_read % (64 * 1024) == 0) {
-            vTaskDelay(1);
-            last_yield = now;
-        }
-    }
-    
+    // 读取像素数据 - 优化：一次性读取，避免频繁让出CPU
+    size_t bytes_read = file.read(img_data, data_size);
     file.close();
 
     if (bytes_read != data_size) {
@@ -427,6 +442,19 @@ void BirdAnimation::releasePreviousFrame() {
         free(current_img_dsc_);
         current_img_dsc_ = nullptr;
     }
+    
+    // 释放预加载缓冲区
+    if (next_img_data_) {
+        free(next_img_data_);
+        next_img_data_ = nullptr;
+    }
+
+    if (next_img_dsc_) {
+        free(next_img_dsc_);
+        next_img_dsc_ = nullptr;
+    }
+    
+    next_frame_ready_ = false;
 }
 
 void BirdAnimation::createTestImage() {
@@ -487,6 +515,91 @@ void BirdAnimation::timerCallback(lv_timer_t* timer) {
     // LVGL定时器在UI任务中执行,已经持有互斥锁
     // 直接调用播放下一帧
     animation->playNextFrame();
+}
+
+bool BirdAnimation::preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
+    if (frame_index >= current_frame_count_) {
+        return false;
+    }
+
+    std::string frame_path = getFramePath(frame_index);
+    File file = SD.open(frame_path.c_str());
+    if (!file) {
+        return false;
+    }
+
+    size_t file_size = file.size();
+    if (file_size < 32) {
+        file.close();
+        return false;
+    }
+
+    // 读取头部
+    uint32_t header_cf, flags, stride, reserved_2, data_size;
+    uint16_t width, height;
+
+    if (file.read((uint8_t*)&header_cf, sizeof(header_cf)) != sizeof(header_cf) ||
+        file.read((uint8_t*)&flags, sizeof(flags)) != sizeof(flags) ||
+        file.read((uint8_t*)&width, sizeof(width)) != sizeof(width) ||
+        file.read((uint8_t*)&height, sizeof(height)) != sizeof(height) ||
+        file.read((uint8_t*)&stride, sizeof(stride)) != sizeof(stride) ||
+        file.read((uint8_t*)&reserved_2, sizeof(reserved_2)) != sizeof(reserved_2) ||
+        file.read((uint8_t*)&data_size, sizeof(data_size)) != sizeof(data_size)) {
+        file.close();
+        return false;
+    }
+
+    // 验证格式
+    uint8_t color_format = header_cf & 0xFF;
+    uint8_t magic = (header_cf >> 24) & 0xFF;
+    if (color_format != 0x12 || magic != 0x37) {
+        file.close();
+        return false;
+    }
+
+    // 检查内存
+    size_t free_heap = ESP.getFreeHeap();
+    if (free_heap < data_size + 4096) {
+        file.close();
+        return false;
+    }
+
+    // 分配内存
+    lv_image_dsc_t* img_dsc = static_cast<lv_image_dsc_t*>(malloc(sizeof(lv_image_dsc_t)));
+    uint8_t* img_data = static_cast<uint8_t*>(malloc(data_size));
+    
+    if (!img_dsc || !img_data) {
+        if (img_dsc) free(img_dsc);
+        if (img_data) free(img_data);
+        file.close();
+        return false;
+    }
+
+    // 读取像素数据
+    size_t bytes_read = file.read(img_data, data_size);
+    file.close();
+
+    if (bytes_read != data_size) {
+        free(img_dsc);
+        free(img_data);
+        return false;
+    }
+
+    // 设置描述符
+    img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+    img_dsc->header.cf = color_format;
+    img_dsc->header.flags = 0;
+    img_dsc->header.w = width;
+    img_dsc->header.h = height;
+    img_dsc->header.stride = width * 2;
+    img_dsc->header.reserved_2 = 0;
+    img_dsc->data_size = data_size;
+    img_dsc->data = img_data;
+
+    *out_dsc = img_dsc;
+    *out_data = img_data;
+    
+    return true;
 }
 
 } // namespace BirdWatching

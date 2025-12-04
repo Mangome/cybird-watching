@@ -46,6 +46,11 @@ private:
     lv_image_dsc_t* current_img_dsc_; // 当前图像描述符 (LVGL 9.x: lv_img_dsc_t → lv_image_dsc_t)
     uint8_t* current_img_data_;     // 当前图像数据
 
+    // 双缓冲：预加载下一帧
+    lv_image_dsc_t* next_img_dsc_;  // 下一帧图像描述符
+    uint8_t* next_img_data_;        // 下一帧图像数据
+    bool next_frame_ready_;         // 下一帧是否已准备好
+
     // 释放前一帧的内存
     void releasePreviousFrame();
 
@@ -72,6 +77,12 @@ private:
 
     // 手动加载图像（LVGL无法直接加载时使用）
     bool tryManualImageLoad(const std::string& file_path);
+    
+    // 预加载图像到缓冲区
+    bool preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
+    
+    // 交换当前帧和下一帧缓冲区
+    void swapBuffers();
 };
 
 } // namespace BirdWatching

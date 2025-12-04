@@ -21,14 +21,23 @@ uint8_t detectFrameCount(uint16_t bird_id) {
         if (test_file) {
             test_file.close();
             max_frames = test_count;
-            // 找到了，说明帧数 >= test_count，继续向上查找
-            lower_bound = test_count + 1;
+            // 找到了魔数，立即检查下一帧是否存在
+            snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, test_count + 1);
+            File next_file = SD.open(path);
+            if (!next_file) {
+                // 下一帧不存在，魔数就是最大帧数
+                return max_frames;
+            }
+            next_file.close();
+            // 下一帧存在，说明帧数 > test_count，继续向上查找
+            lower_bound = test_count + 2;  // 已经确认了 test_count+1 存在
+            max_frames = test_count + 1;
             break;
         }
         // 没找到，继续尝试更小的常见值
     }
     
-    // 如果找到了一个常见值，使用二分查找在 [lower_bound, 100] 范围内精确定位
+    // 如果找到了一个常见值但还有更多帧，使用二分查找在 [lower_bound, 100] 范围内精确定位
     if (max_frames > 0 && lower_bound <= 100) {
         uint8_t min_val = lower_bound;
         uint8_t max_val = 100;

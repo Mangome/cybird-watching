@@ -29,8 +29,18 @@ void SdCard::init()
 	{
 		LOG_INFO("SD", "Mount attempt " + String(attempt) + "/3...");
 		
-		// 尝试不同的SPI频率：从低到高
-		uint32_t spi_freq = (attempt == 1) ? 1000000 : 4000000; // 第一次用1MHz，后续用4MHz
+		// 优化SPI频率策略：
+		// - 第1次: 1MHz (安全模式，确保兼容性)
+		// - 第2次: 20MHz (高速模式，适合Class 10卡)
+		// - 第3次: 10MHz (中速模式，折中方案)
+		uint32_t spi_freq;
+		if (attempt == 1) {
+			spi_freq = 1000000;  // 1MHz
+		} else if (attempt == 2) {
+			spi_freq = 20000000; // 20MHz
+		} else {
+			spi_freq = 10000000; // 10MHz
+		}
 		
 		if (SD.begin(15, *sd_spi, spi_freq)) // SD-Card SS pin is 15
 		{
