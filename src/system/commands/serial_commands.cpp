@@ -7,6 +7,7 @@
 namespace BirdWatching {
     bool triggerBird();
     void showBirdStatistics();
+    bool resetBirdStatistics();
     void listBirds();
     bool isBirdManagerInitialized();
     bool isAnimationPlaying();
@@ -359,12 +360,14 @@ void SerialCommands::handleBirdCommand(const String& param) {
         Serial.println("  list       - List all available birds");
         Serial.println("  stats      - Show bird watching statistics");
         Serial.println("  status     - Show bird watching system status");
+        Serial.println("  reset      - Reset bird watching statistics and save to file");
         Serial.println("  help       - Show this help");
         Serial.println("Examples:");
         Serial.println("  bird trigger  - Trigger a random bird");
         Serial.println("  bird list     - List all birds");
         Serial.println("  bird stats    - Show statistics");
         Serial.println("  bird status   - Show system status");
+        Serial.println("  bird reset    - Reset all statistics");
     }
     else if (param.equals("trigger")) {
         Serial.println("Triggering bird appearance...");
@@ -394,6 +397,14 @@ void SerialCommands::handleBirdCommand(const String& param) {
             Serial.println("Bird Manager: NOT INITIALIZED");
         }
         Serial.println("=== End Status ===");
+    }
+    else if (param.equals("reset")) {
+        Serial.println("Resetting bird watching statistics...");
+        if (BirdWatching::resetBirdStatistics()) {
+            Serial.println("Statistics reset successfully and saved to file!");
+        } else {
+            Serial.println("Failed to reset statistics. Check if system is initialized.");
+        }
     }
     else {
         Serial.println("Unknown bird subcommand: " + param);

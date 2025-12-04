@@ -40,6 +40,9 @@ void onGesture(int gesture_type);
 // 便捷函数：获取观鸟统计
 void showBirdStatistics();
 
+// 便捷函数：重置观鸟统计
+bool resetBirdStatistics();
+
 // 便捷函数：列出所有可用小鸟
 void listBirds();
 

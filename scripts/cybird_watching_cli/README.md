@@ -96,6 +96,7 @@ uv run python -m cybird_watching_cli.main send "help"
 | `bird trigger` | 手动触发小鸟动画 |
 | `bird stats` | 显示观鸟统计信息 |
 | `bird status` | 显示观鸟系统状态 |
+| `bird reset` | 重置观鸟统计数据 |
 | `bird help` | 显示观鸟命令帮助 |
 
 ### 本地命令
@@ -104,6 +105,7 @@ uv run python -m cybird_watching_cli.main send "help"
 |------|------|
 | `help` | 显示CLI帮助 |
 | `test` | 测试基本通信（无响应标记） |
+| `reset` | 重置观鸟统计数据并立即落盘 |
 | `quit`, `exit` | 退出程序 |
 | `reconnect` | 重新连接设备 |
 | `cls` | 清除终端屏幕 |

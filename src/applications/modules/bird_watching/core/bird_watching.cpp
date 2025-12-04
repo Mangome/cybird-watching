@@ -71,6 +71,27 @@ void showBirdStatistics() {
     g_birdManager->showStatistics();
 }
 
+bool resetBirdStatistics() {
+    if (!g_birdManager) {
+        LOG_ERROR("BIRD", "Bird watching system not initialized");
+        return false;
+    }
+
+    // 获取统计对象并重置
+    BirdStatistics& stats = const_cast<BirdStatistics&>(g_birdManager->getStatistics());
+    stats.resetStats();
+    
+    // 立即保存到文件
+    bool saved = stats.saveToFile();
+    if (saved) {
+        LOG_INFO("BIRD", "Statistics reset and saved successfully");
+    } else {
+        LOG_ERROR("BIRD", "Statistics reset but failed to save to file");
+    }
+    
+    return saved;
+}
+
 void listBirds() {
     if (!g_birdManager) {
         Serial.println("Bird watching system not initialized");

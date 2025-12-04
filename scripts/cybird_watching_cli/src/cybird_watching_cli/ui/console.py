@@ -207,11 +207,13 @@ class ConsoleInterface:
   bird list        - 显示可用小鸟列表
   bird stats       - 显示观鸟统计信息
   bird status      - 显示观鸟系统状态
+  bird reset       - 重置观鸟统计数据
   bird help        - 显示观鸟命令帮助
 
 本地命令:
   help             - 显示此CLI帮助
   test             - 测试基本通信（无响应标记）
+  reset            - 重置观鸟统计数据并落盘
   quit, exit       - 退出程序
   reconnect        - 重新连接设备
   cls              - 清除此终端屏幕

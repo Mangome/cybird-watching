@@ -123,6 +123,9 @@ class CybirdWatchingCLI:
         elif command == 'info':
             await self._show_device_info()
             return True
+        elif command == 'reset':
+            await self._execute_reset_command()
+            return True
 
         return False
 
@@ -161,6 +164,20 @@ class CybirdWatchingCLI:
             self.console.show_device_info(device_info)
         except Exception as e:
             self.console.show_error(f"获取设备信息失败: {str(e)}")
+
+    async def _execute_reset_command(self) -> None:
+        """执行重置统计命令"""
+        self.console.show_info("正在重置观鸟统计数据...")
+        
+        try:
+            # 发送bird reset命令
+            result = await self.command_executor.execute_command_with_validation("bird reset")
+            self.console.show_command_result(result)
+            
+            if result.success:
+                self.console.show_info("✓ 统计数据已重置并保存到文件")
+        except Exception as e:
+            self.console.show_error(f"重置命令执行失败: {str(e)}")
 
     async def send_single_command(self, command: str) -> None:
         """发送单个命令（非交互模式）"""
