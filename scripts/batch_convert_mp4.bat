@@ -46,7 +46,7 @@ if errorlevel 1 (
 )
 
 echo Converting images...
-uv run mp4-converter batch "!SOURCE_DIR!" "!TARGET_DIR!" --output-format rgb565 --frame-rate 15 --resize 120x120 --workers 8 --palindrome
+uv run mp4-converter batch "!SOURCE_DIR!" "!TARGET_DIR!" --output-format rgb565 --frame-rate 15 --resize 120x120 --workers 2 --palindrome
 
 if errorlevel 1 (
     echo.
