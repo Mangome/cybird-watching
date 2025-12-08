@@ -4,342 +4,485 @@
 
 ```mermaid
 graph TB
-    subgraph "主程序 (main.cpp)"
-        A[setup()] --> B[BirdWatching::initializeBirdWatching()]
-        C[loop()] --> D[BirdWatching::updateBirdWatching()]
+    subgraph main["主程序 main.cpp"]
+        A[setup] --> B[初始化硬件和系统]
+        B --> C[TaskManager::initialize]
+        C --> D[TaskManager::startTasks]
+        D --> E[BirdWatching::initializeBirdWatching]
+        E --> F[双核任务运行]
     end
 
-    subgraph "BirdWatching 核心模块"
-        B --> E[BirdManager::initialize]
-        D --> F[BirdManager::update]
-
-        E --> G[BirdAnimation]
-        E --> H[BirdSelector]
-        E --> I[BirdStatistics]
-        E --> J[配置加载]
-
-        F --> G
-        F --> H
-        F --> I
+    subgraph tasks["FreeRTOS双核架构"]
+        F --> G[Core 0: UI Task]
+        F --> H[Core 1: System Task]
+        
+        G --> G1[LVGL渲染]
+        G --> G2[Display刷新]
+        G --> G3[processTriggerRequest]
+        
+        H --> H1[IMU手势检测]
+        H --> H2[串口命令处理]
+        H --> H3[BirdManager::update]
+        H --> H4[统计数据保存]
     end
 
-    subgraph "外部系统交互"
-        K[串口命令系统] --> L["bird trigger", "bird stats"]
-        M[MPU6050传感器] --> N[手势检测]
-        O[定时器系统] --> P[自动触发]
-        Q[SD卡存储] --> R[统计数据持久化]
-        S[LVGL显示系统] --> T[动画播放界面]
+    subgraph birdcore["BirdWatching 核心模块"]
+        E --> I[BirdManager::initialize]
+        
+        I --> J[BirdAnimation初始化]
+        I --> K[BirdSelector初始化]
+        I --> L[BirdStatistics初始化]
+        I --> M[StatsView初始化]
+        I --> N[加载bird_config.csv]
+        
+        G3 --> O[触发小鸟动画]
+        H3 --> P[定期保存统计]
     end
 
-    L --> F
-    N --> F
-    P --> F
-    I --> Q
-    G --> S
+    subgraph interaction["交互方式"]
+        Q[IMU手势] --> R[前倾1秒: 显示统计]
+        Q --> S[后倾1秒: 隐藏统计]
+        Q --> T[左右倾: 触发小鸟或翻页]
+        
+        U[串口命令] --> V[bird trigger]
+        U --> W[bird stats]
+        U --> X[bird list]
+    end
+
+    H1 --> Q
+    H2 --> U
+    O --> G1
+    P --> Y[SD卡]
+    L --> Y
 ```
 
 ## 初始化流程
 
 ```mermaid
 flowchart TD
-    Start([开始初始化]) --> InitManager[BirdManager 初始化]
-    InitManager --> LoadConfig[加载配置文件]
-    LoadConfig --> ConfigCheck{配置文件存在?}
-
-    ConfigCheck -->|否| UseDefaults[使用默认配置]
-    ConfigCheck -->|是| ParseConfig[解析配置]
-
-    UseDefaults --> SetDefaults[设置默认参数]
-    ParseConfig --> SetParams[应用配置参数]
-
-    SetDefaults --> InitComponents[初始化子系统]
-    SetParams --> InitComponents
-
-    InitComponents --> InitAnim[BirdAnimation 初始化]
-    InitComponents --> InitSelector[BirdSelector 初始化]
-    InitComponents --> InitStats[BirdStatistics 初始化]
-
-    InitAnim --> SetupLVGL[设置 LVGL 图像对象]
-    InitSelector --> SetupWeights[设置小鸟权重]
-    InitStats --> SetupCounters[初始化计数器]
-
-    SetupLVGL --> InitTimers[初始化定时器]
-    SetupWeights --> InitTimers
-    SetupCounters --> InitTimers
-
-    InitTimers --> SetupAutoTrigger[设置自动触发定时器]
-    InitTimers --> SetupStatsTimer[设置统计保存定时器]
-
-    SetupAutoTrigger --> Success[初始化成功]
-    SetupStatsTimer --> Success
-    Success --> End([初始化完成])
+    Start([系统启动]) --> InitSerial[串口初始化 115200]
+    InitSerial --> InitLogger[日志系统初始化]
+    InitLogger --> InitCommands[串口命令系统初始化]
+    InitCommands --> InitSD[SD卡初始化]
+    
+    InitSD --> InitScreen[显示屏初始化]
+    InitScreen --> InitLVGL[LVGL文件系统初始化]
+    InitLVGL --> InitMPU[IMU输入设备初始化]
+    InitMPU --> InitRGB[RGB LED初始化]
+    
+    InitRGB --> CreateGUI[创建GUI界面]
+    CreateGUI --> InitTaskMgr[TaskManager初始化]
+    InitTaskMgr --> CreateMutex[创建LVGL互斥锁]
+    
+    CreateMutex --> StartTasks[启动双核任务]
+    StartTasks --> Core0Task[Core 0: UI Task]
+    StartTasks --> Core1Task[Core 1: System Task]
+    
+    Core0Task --> ShowLogo[显示Logo]
+    Core1Task --> ShowLogo
+    
+    ShowLogo --> InitBird[BirdWatching::initialize]
+    InitBird --> ScanResources[扫描小鸟资源]
+    
+    ScanResources --> InitAnim[BirdAnimation初始化]
+    ScanResources --> InitSelector[BirdSelector初始化]
+    ScanResources --> InitStats[BirdStatistics初始化]
+    ScanResources --> InitStatsView[StatsView初始化]
+    
+    InitAnim --> LoadConfig[加载bird_config.csv]
+    InitSelector --> LoadConfig
+    InitStats --> LoadHistoryData[加载历史统计数据]
+    
+    LoadConfig --> HideLogo[关闭Logo]
+    LoadHistoryData --> HideLogo
+    
+    HideLogo --> CheckHistory{有历史数据?}
+    CheckHistory -->|是| RandomEncounter[随机显示已遇见小鸟]
+    CheckHistory -->|否| TriggerFirst[触发首次小鸟]
+    
+    RandomEncounter --> Ready[系统就绪]
+    TriggerFirst --> Ready
+    
+    Ready --> End([初始化完成])
 ```
 
-## 主循环运行流程
+## 双核任务运行流程
 
 ```mermaid
 flowchart TD
-    LoopStart([主循环开始]) --> CheckAutoTrigger{检查自动触发}
+    subgraph core0["Core 0: UI Task 200Hz"]
+        UI1([UI任务循环]) --> UI2[获取LVGL互斥锁]
+        UI2 --> UI3[lv_task_handler]
+        UI3 --> UI4[Display::routine]
+        UI4 --> UI5[processTriggerRequest]
+        UI5 --> UI6{有触发请求?}
+        UI6 -->|是| UI7[执行动画播放]
+        UI6 -->|否| UI8[检查并隐藏小鸟信息]
+        UI7 --> UI9[释放LVGL互斥锁]
+        UI8 --> UI9
+        UI9 --> UI10[延迟5ms]
+        UI10 --> UI1
+    end
 
-    CheckAutoTrigger -->|到时间| TriggerAuto[BirdManager::triggerBirdWatch]
-    CheckAutoTrigger -->|未到时间| CheckGesture{检查手势输入}
+    subgraph core1["Core 1: System Task 100Hz"]
+        SYS1([系统任务循环]) --> SYS2[IMU::detectGesture]
+        SYS2 --> SYS3{检测到手势?}
+        SYS3 -->|前倾1秒| SYS4[显示统计界面]
+        SYS3 -->|后倾1秒| SYS5[隐藏统计界面]
+        SYS3 -->|左右倾| SYS6[触发小鸟或翻页]
+        SYS3 -->|无| SYS7[处理串口命令]
+        
+        SYS4 --> SYS8[发送消息到UI任务]
+        SYS5 --> SYS8
+        SYS6 --> SYS8
+        
+        SYS7 --> SYS9[BirdManager::update]
+        SYS8 --> SYS9
+        SYS9 --> SYS10[定期保存统计]
+        SYS10 --> SYS11[延迟10ms]
+        SYS11 --> SYS1
+    end
 
-    CheckGesture -->|有效手势| ProcessGesture[处理手势触发]
-    CheckGesture -->|无手势| CheckCommand{检查串口命令}
-
-    ProcessGesture --> TriggerType{手势类型判断}
-    TriggerType -->|前倾| TriggerAuto
-    TriggerType -->|后倾| ShowStats[显示统计信息]
-    TriggerType -->|摇动| TriggerRandom[随机触发]
-    TriggerType -->|双重倾斜| ResetStats[重置统计]
-
-    TriggerAuto --> SelectBird[BirdSelector::selectRandomBird]
-    TriggerRandom --> SelectBird
-
-    ShowStats --> LoopEnd([本循环结束])
-    ResetStats --> LoopEnd
-
-    SelectBird --> CheckResource{检查图片资源}
-    CheckResource -->|存在| LoadFrames[BirdAnimation::loadFrames]
-    CheckResource -->|不存在| UsePlaceholder[使用彩色占位符]
-
-    LoadFrames --> UpdateDisplay[BirdAnimation::updateDisplay]
-    UsePlaceholder --> UpdateDisplay
-
-    UpdateDisplay --> RecordStats[记录统计数据]
-    RecordStats --> CheckSaveTime{检查保存时间}
-
-    CheckSaveTime -->|到时间| SaveStats[BirdStatistics::saveStatistics]
-    CheckSaveTime -->|未到时间| ContinueLoop
-
-    SaveStats --> ContinueLoop
-    ContinueLoop --> LoopEnd
-
-    CheckCommand -->|bird trigger| TriggerAuto
-    CheckCommand -->|bird stats| ShowStats
-    CheckCommand -->|bird help| ShowHelp[显示帮助信息]
-    CheckCommand -->|无命令| LoopEnd
+    SYS8 -.消息队列.-> UI5
 ```
 
-## 动画播放子流程
+## 小鸟触发流程
 
 ```mermaid
 flowchart TD
-    AnimStart([开始动画播放]) --> GetBirdInfo[获取小鸟信息]
-    GetBirdInfo --> CheckFrameCount{帧数 > 0?}
-
-    CheckFrameCount -->|否| CreatePlaceholder[创建占位符]
-    CheckFrameCount -->|是| LoadImageFiles[加载图片文件]
-
-    CreatePlaceholder --> SetColorBlock[设置彩色块]
-    SetColorBlock --> ShowAnimation[显示动画]
-
-    LoadImageFiles --> FileCheck{文件存在检查}
-    FileCheck -->|存在| CreateImageObj[创建LVGL图像对象]
-    FileCheck -->|不存在| UsePlaceholder
-
-    CreateImageObj --> ShowAnimation
-
-    ShowAnimation --> StartFrameTimer[启动帧切换定时器]
-    StartFrameTimer --> FrameLoop[帧循环播放]
-
-    FrameLoop --> NextFrame{当前帧 < 总帧数?}
-    NextFrame -->|是| LoadNextFrame[加载下一帧]
-    NextFrame -->|否| AnimationEnd[动画结束]
-
-    LoadNextFrame --> UpdateScreen[更新屏幕显示]
-    UpdateScreen --> WaitNextFrame[等待下一帧时间]
-    WaitNextFrame --> FrameLoop
-
-    AnimationEnd --> CleanupLVGL[清理LVGL对象]
-    CleanupLVGL --> AnimEnd([动画播放结束])
+    Trigger([触发请求]) --> Source{触发源}
+    
+    Source -->|手势触发| Gesture[IMU手势检测]
+    Source -->|命令触发| Command[串口命令]
+    Source -->|代码调用| API[API调用]
+    
+    Gesture --> SetRequest[设置触发请求]
+    Command --> SetRequest
+    API --> SetRequest
+    
+    SetRequest --> WaitUI[等待UI任务处理]
+    WaitUI --> UITask[UI任务获取LVGL锁]
+    
+    UITask --> CheckStats{统计界面可见?}
+    CheckStats -->|是| Ignore[忽略触发]
+    CheckStats -->|否| CheckPlaying{正在播放?}
+    
+    CheckPlaying -->|是| StopAnim[停止当前动画]
+    CheckPlaying -->|否| SelectBird
+    
+    StopAnim --> SelectBird[BirdSelector::getRandomBird]
+    SelectBird --> GetInfo[获取小鸟信息]
+    
+    GetInfo --> CheckNew{首次遇见?}
+    CheckNew -->|是| MarkNew[标记为新小鸟]
+    CheckNew -->|否| GetCount[获取遇见次数]
+    
+    MarkNew --> LoadAnim[BirdAnimation::loadBird]
+    GetCount --> LoadAnim
+    
+    LoadAnim --> CheckFrames{帧数大于0?}
+    CheckFrames -->|是| LoadImages[加载图片序列]
+    CheckFrames -->|否| Placeholder[创建彩色占位符]
+    
+    LoadImages --> StartLoop[startLoop循环播放]
+    Placeholder --> StartLoop
+    
+    StartLoop --> RecordStats[记录统计数据]
+    RecordStats --> ShowInfo[显示小鸟信息]
+    
+    ShowInfo --> SetTimer[设置5秒定时器]
+    SetTimer --> Complete[触发完成]
+    
+    Ignore --> Complete
 ```
 
-## 统计系统子流程
+## 统计系统流程
 
 ```mermaid
 flowchart TD
-    StatsStart([统计数据更新]) --> GetEncounterData[获取遇见数据]
-    GetEncounterData --> FindBird{小鸟已存在?}
+    StatsStart([记录遇见]) --> GetBirdId[获取小鸟ID]
+    GetBirdId --> FindRecord{已有记录?}
 
-    FindBird -->|否| CreateNewRecord[创建新记录]
-    FindBird -->|是| UpdateRecord[更新现有记录]
+    FindRecord -->|否| CreateNew[创建新记录]
+    FindRecord -->|是| UpdateExist[更新现有记录]
 
-    CreateNewRecord --> SetFirstTime[设置首次遇见时间]
-    SetFirstTime --> SetLastTime[设置最后遇见时间]
+    CreateNew --> SetFirst[设置首次遇见时间]
+    SetFirst --> SetCount1[设置次数=1]
+    SetCount1 --> SaveMem[保存到内存]
 
-    UpdateRecord --> IncrementCount[增加遇见次数]
-    IncrementCount --> UpdateLastTime[更新最后遇见时间]
+    UpdateExist --> IncrCount[次数+1]
+    IncrCount --> UpdateTime[更新最后遇见时间]
+    UpdateTime --> SaveMem
 
-    SetLastTime --> CalculateProgress[计算遇见进度]
-    UpdateLastTime --> CalculateProgress
+    SaveMem --> CheckSave{距上次保存>10秒?}
+    CheckSave -->|是| SaveFile[保存到SD卡JSON]
+    CheckSave -->|否| MemOnly[仅内存更新]
 
-    CalculateProgress --> FormatOutput[格式化输出]
-    FormatOutput --> SerialOutput[串口输出统计]
+    SaveFile --> BuildJSON[构建JSON数据]
+    BuildJSON --> WriteSD[写入/stats/bird_stats.json]
+    WriteSD --> StatsEnd([统计完成])
+    
+    MemOnly --> StatsEnd
+    
+    subgraph view["统计界面显示"]
+        ShowView[显示统计界面] --> LoadData[加载统计数据]
+        LoadData --> CalcProgress[计算遇见进度]
+        CalcProgress --> Pagination[分页显示每页5只]
+        Pagination --> RenderUI[渲染LVGL界面]
+    end
+```
 
-    SerialOutput --> CheckAutoSave{检查自动保存}
-    CheckAutoSave -->|到时间| SaveToFile[保存到SD卡]
-    CheckAutoSave -->|未到时间| MemoryStore[仅内存存储]
+## 统计界面交互流程
 
-    SaveToFile --> CreateJSON[创建JSON数据]
-    CreateJSON --> WriteFile[写入文件]
-    WriteFile --> StatsEnd([统计更新完成])
-
-    MemoryStore --> StatsEnd
+```mermaid
+flowchart TD
+    Enter([进入统计界面]) --> StopAnim[停止当前动画]
+    StopAnim --> HideInfo[隐藏小鸟信息]
+    HideInfo --> CreateView[创建StatsView]
+    
+    CreateView --> LoadStats[加载统计数据]
+    LoadStats --> CalcPages[计算总页数]
+    CalcPages --> ShowPage1[显示第1页]
+    
+    ShowPage1 --> WaitGesture[等待手势输入]
+    
+    WaitGesture --> GestureCheck{手势类型}
+    GestureCheck -->|左倾| PrevPage[上一页]
+    GestureCheck -->|右倾| NextPage[下一页]
+    GestureCheck -->|后倾1秒| Exit[退出统计界面]
+    
+    PrevPage --> CheckMin{当前页>1?}
+    CheckMin -->|是| UpdatePrev[页码-1并刷新]
+    CheckMin -->|否| FlashRed[红灯提示]
+    
+    NextPage --> CheckMax{当前页<总页数?}
+    CheckMax -->|是| UpdateNext[页码+1并刷新]
+    CheckMax -->|否| FlashRed
+    
+    UpdatePrev --> WaitGesture
+    UpdateNext --> WaitGesture
+    FlashRed --> WaitGesture
+    
+    Exit --> DestroyView[销毁StatsView]
+    DestroyView --> ShowBird[显示一只小鸟]
+    ShowBird --> CheckHistory{有历史数据?}
+    CheckHistory -->|是| RandomShow[随机显示已遇见小鸟]
+    CheckHistory -->|否| TriggerNew[触发新小鸟]
+    
+    RandomShow --> Complete([退出完成])
+    TriggerNew --> Complete
 ```
 
 ## 小鸟选择算法流程
 
 ```mermaid
 flowchart TD
-    SelectStart([开始选择小鸟]) --> GetBirdList[获取小鸟列表]
-    GetBirdList --> CalculateTotalWeight[计算总权重]
-
-    CalculateTotalWeight --> GenerateRandom[生成随机数]
-    GenerateRandom --> SelectAlgorithm[加权随机选择算法]
-
-    SelectAlgorithm --> IterateBirds[遍历小鸟列表]
-    IterateBirds --> CheckWeight{随机数 <= 当前权重?}
-
-    CheckWeight -->|否| NextBird[下一个小鸟]
-    CheckWeight -->|是| SelectBird[选择该小鸟]
-
-    NextBird --> HasMoreBirds{还有小鸟?}
-    HasMoreBirds -->|是| IterateBirds
-    HasMoreBirds -->|否| SelectBird
-
-    SelectBird --> LogSelection[记录选择日志]
-    LogSelection --> ReturnSelected[返回选中结果]
-    ReturnSelected --> SelectEnd([选择完成])
+    SelectStart([开始选择]) --> GetList[从BirdSelector获取列表]
+    GetList --> CheckEmpty{列表为空?}
+    CheckEmpty -->|是| Error[返回错误]
+    CheckEmpty -->|否| CalcWeight[计算总权重]
+    
+    CalcWeight --> GenRandom[生成随机数 0到总权重]
+    GenRandom --> Iterate[遍历小鸟列表]
+    
+    Iterate --> Accumulate[累加当前小鸟权重]
+    Accumulate --> Compare{随机数<=累加权重?}
+    
+    Compare -->|是| Selected[选中该小鸟]
+    Compare -->|否| HasMore{还有小鸟?}
+    
+    HasMore -->|是| NextBird[下一只小鸟]
+    HasMore -->|否| SelectLast[选择最后一只]
+    
+    NextBird --> Accumulate
+    SelectLast --> Selected
+    
+    Selected --> LogSelection[记录日志]
+    LogSelection --> Return[返回BirdInfo]
+    Return --> End([选择完成])
+    Error --> End
 ```
 
 ## 手势检测处理流程
 
 ```mermaid
 flowchart TD
-    GestureStart([手势检测开始]) --> ReadMPU[读取MPU6050数据]
-    ReadMPU --> ProcessRaw[处理原始数据]
+    GestureStart([System Task检测]) --> ReadMPU[IMU::detectGesture]
+    ReadMPU --> ProcessData[处理加速度计数据]
 
-    ProcessRaw --> FilterNoise[过滤噪声]
-    FilterNoise --> CalculateThreshold[计算阈值]
+    ProcessData --> CheckForward{检测前倾?}
+    CheckForward -->|是| CheckForwardTime{保持1秒?}
+    CheckForwardTime -->|是| ForwardHold[GESTURE_FORWARD_HOLD]
+    CheckForwardTime -->|否| CheckOther
+    
+    CheckForward -->|否| CheckBackward{检测后倾?}
+    CheckBackward -->|是| CheckBackwardTime{保持1秒?}
+    CheckBackwardTime -->|是| BackwardHold[GESTURE_BACKWARD_HOLD]
+    CheckBackwardTime -->|否| CheckOther
+    
+    CheckBackward -->|否| CheckLeft{检测左倾?}
+    CheckLeft -->|是| LeftTilt[GESTURE_LEFT_TILT]
+    CheckLeft -->|否| CheckRight{检测右倾?}
+    CheckRight -->|是| RightTilt[GESTURE_RIGHT_TILT]
+    CheckRight -->|否| NoGesture[GESTURE_NONE]
 
-    CalculateThreshold --> DetectTilt{检测倾斜状态}
-    DetectTilt --> CheckDirection{判断倾斜方向}
-
-    CheckDirection -->|向前| ForwardTilt[前倾手势]
-    CheckDirection -->|向后| BackwardTilt[后倾手势]
-    CheckDirection -->|无| StableState[稳定状态]
-
-    ForwardTilt --> DebounceForward[防抖处理]
-    BackwardTilt --> DebounceBackward[防抖处理]
-
-    DebounceForward --> TriggerAction[触发播放]
-    DebounceBackward --> ShowStatistics[显示统计]
-
-    DetectTilt --> CheckShake{检测摇晃}
-    CheckShake -->|摇晃| ShakeDetect[摇动手势检测]
-    CheckShake -->|无摇晃| CheckDoubleTilt{检测双重倾斜}
-
-    ShakeDetect --> DebounceShake[防抖处理]
-    DebounceShake --> RandomTrigger[随机触发]
-
-    CheckDoubleTilt -->|双重倾斜| DoubleTiltDetect[双重倾斜检测]
-    CheckDoubleTilt -->|无双重倾斜| NoGesture[无有效手势]
-
-    DoubleTiltDetect --> DebounceDouble[双重倾斜防抖]
-    DebounceDouble --> ResetAllStats[重置所有统计]
-
-    TriggerAction --> GestureEnd([手势处理结束])
-    ShowStatistics --> GestureEnd
-    RandomTrigger --> GestureEnd
-    ResetAllStats --> GestureEnd
-    NoGesture --> GestureEnd
-    StableState --> GestureEnd
+    ForwardHold --> SendMsg[发送手势消息到UI任务]
+    BackwardHold --> SendMsg
+    LeftTilt --> SendMsg
+    RightTilt --> SendMsg
+    
+    SendMsg --> ProcessInUI[UI任务处理手势]
+    ProcessInUI --> CheckContext{当前上下文}
+    
+    CheckContext -->|统计界面| StatsContext
+    CheckContext -->|主界面| MainContext
+    
+    subgraph StatsContext["统计界面上下文"]
+        SC1[前倾1秒: 无操作]
+        SC2[后倾1秒: 退出统计]
+        SC3[左倾: 上一页]
+        SC4[右倾: 下一页]
+    end
+    
+    subgraph MainContext["主界面上下文"]
+        MC1[前倾1秒: 显示统计]
+        MC2[后倾1秒: 无操作]
+        MC3[左右倾: 触发小鸟 10秒CD]
+    end
+    
+    CheckOther --> NoGesture
+    NoGesture --> GestureEnd([检测结束])
+    StatsContext --> GestureEnd
+    MainContext --> GestureEnd
 ```
 
 ## 数据持久化流程
 
 ```mermaid
 flowchart TD
-    PersistStart([开始数据持久化]) --> CheckSDCard{SD卡就绪?}
+    PersistStart([触发保存]) --> CheckInterval{距上次>10秒?}
+    CheckInterval -->|否| Skip[跳过保存]
+    CheckInterval -->|是| CheckSD{SD卡就绪?}
 
-    CheckSDCard -->|否| MemoryOnly[仅内存存储]
-    CheckSDCard -->|是| PrepareData[准备数据]
+    CheckSD -->|否| LogWarn[记录警告]
+    CheckSD -->|是| GetStats[获取统计数据]
 
-    MemoryOnly --> LogWarning[记录警告日志]
-    LogWarning --> PersistEnd([持久化结束])
+    GetStats --> BuildJSON[构建JSON对象]
+    BuildJSON --> AddMeta[添加元数据]
+    AddMeta --> AddTimestamp[添加时间戳]
+    AddTimestamp --> AddBirds[添加小鸟数据]
 
-    PrepareData --> GetStatistics[获取统计数据]
-    GetStatistics --> BuildJSON[构建JSON数据]
-
-    BuildJSON --> CreateDoc[创建JSON文档]
-    CreateDoc --> AddTimestamp[添加时间戳]
-    AddTimestamp --> AddBirdData[添加小鸟数据]
-
-    AddBirdData --> OpenFile[打开文件]
-    OpenFile --> WriteSuccess{写入成功?}
-
-    WriteSuccess -->|是| CloseFile[关闭文件]
-    WriteSuccess -->|否| RetryWrite{重试次数检查}
-
-    RetryWrite -->|未超限| WaitRetry[等待后重试]
-    RetryWrite -->|超限| LogError[记录错误日志]
-
-    WaitRetry --> OpenFile
-    LogError --> PersistEnd
-
-    CloseFile --> VerifyFile{验证文件完整性}
-    VerifyFile -->|成功| LogSuccess[记录成功日志]
-    VerifyFile -->|失败| CleanupFile[清理损坏文件]
-
-    LogSuccess --> PersistEnd
-    CleanupFile --> PersistEnd
+    AddBirds --> OpenFile[打开stats/bird_stats.json]
+    OpenFile --> FileCheck{文件打开成功?}
+    
+    FileCheck -->|否| CreateFile[创建新文件]
+    FileCheck -->|是| WriteData[写入JSON数据]
+    
+    CreateFile --> WriteData
+    WriteData --> CloseFile[关闭文件]
+    CloseFile --> Verify{验证完整性}
+    
+    Verify -->|成功| UpdateTime[更新保存时间]
+    Verify -->|失败| Retry{重试次数<3?}
+    
+    Retry -->|是| Wait[等待100ms]
+    Retry -->|否| LogError[记录错误]
+    
+    Wait --> OpenFile
+    UpdateTime --> Success[保存成功]
+    
+    Success --> End([持久化完成])
+    LogWarn --> End
+    LogError --> End
+    Skip --> End
 ```
 
 ## 系统状态图
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Initialized: 初始化完成
-    Initialized --> Idle: 等待触发
-    Idle --> BirdPlaying: 触发事件
-    BirdPlaying --> AnimationActive: 开始播放
-    AnimationActive --> FrameUpdating: 帧更新中
-    FrameUpdating --> AnimationActive: 继续播放
-    AnimationActive --> StatsUpdating: 播放结束
-    StatsUpdating --> Idle: 返回空闲
-
-    Idle --> StatsDisplay: 显示统计请求
-    StatsDisplay --> Idle: 统计显示完成
-
-    Idle --> GestureProcessing: 手势检测
-    GestureProcessing --> Idle: 无有效手势
-    GestureProcessing --> BirdPlaying: 有效触发手势
-    GestureProcessing --> StatsDisplay: 统计显示手势
-
-    BirdPlaying --> ErrorState: 错误发生
-    StatsDisplay --> ErrorState: 错误发生
-    ErrorState --> Idle: 错误恢复
-
-    Idle --> SavingData: 定时保存
-    SavingData --> Idle: 保存完成
+    [*] --> Initializing: 系统启动
+    Initializing --> LogoDisplay: 显示Logo
+    LogoDisplay --> ResourceScan: 扫描小鸟资源
+    ResourceScan --> Ready: 资源加载完成
+    
+    Ready --> IdleBird: 显示小鸟
+    IdleBird --> Triggering: 手势/命令触发
+    Triggering --> AnimationPlaying: 播放动画
+    AnimationPlaying --> IdleBird: 动画完成
+    
+    IdleBird --> StatsView: 前倾1秒
+    StatsView --> Browsing: 浏览统计
+    Browsing --> Browsing: 左右倾翻页
+    Browsing --> IdleBird: 后倾1秒退出
+    
+    IdleBird --> ErrorState: 错误发生
+    AnimationPlaying --> ErrorState: 错误发生
+    StatsView --> ErrorState: 错误发生
+    ErrorState --> Recovery: 错误恢复
+    Recovery --> IdleBird: 恢复完成
 ```
 
 ## 总结
 
-BirdWatching模块是一个完整的嵌入式观鸟应用系统，具有以下特点：
+BirdWatching模块是一个完整的嵌入式观鸟应用系统，基于ESP32双核架构开发，具有以下特点：
 
-### 核心功能
-- **智能触发机制**: 支持自动触发、手势触发、串口命令触发
-- **丰富的小鸟选择**: 基于权重的随机选择算法
-- **流畅的动画播放**: LVGL集成的帧序列播放系统
-- **完整的统计追踪**: 遇见次数、时间、进度等数据分析
-- **可靠的数据持久化**: SD卡存储与JSON格式
+### 核心架构
+- **双核FreeRTOS架构**: Core 0处理UI渲染，Core 1处理系统逻辑和传感器
+- **任务间通信**: 通过消息队列和互斥锁实现线程安全的跨核通信
+- **LVGL集成**: 使用互斥锁保护所有LVGL对象访问
+- **模块化设计**: BirdManager、BirdAnimation、BirdSelector、BirdStatistics独立模块
+
+### 交互方式
+- **IMU手势控制**:
+  - 前倾保持1秒: 显示统计界面
+  - 后倾保持1秒: 退出统计界面
+  - 左右倾: 主界面触发小鸟(10秒CD) / 统计界面翻页
+- **串口命令**: 
+  - `bird trigger`: 触发小鸟
+  - `bird stats`: 显示统计
+  - `bird list`: 列出所有小鸟
+  - `bird reset`: 重置统计数据
+
+### 数据管理
+- **统计追踪**: 遇见次数、首次/最后遇见时间、进度计算
+- **持久化存储**: SD卡JSON格式，每10秒自动保存
+- **配置文件**: bird_config.csv定义小鸟列表和权重
+- **分页显示**: 统计界面每页显示5只小鸟
+
+### 视觉反馈
+- **小鸟信息显示**: 右下角显示小鸟名称和遇见次数，5秒后自动隐藏
+- **新小鸟提示**: 首次遇见时特殊显示"加新{小鸟名字}！"
+- **RGB LED提示**: 手势操作时LED闪烁反馈（绿色/蓝色/红色）
+- **Logo过渡**: 启动时显示Logo，资源扫描完成后自动切换
 
 ### 技术特性
-- **模块化设计**: 职责分离，易于维护和扩展
-- **资源管理**: 智能的占位符机制和内存管理
-- **错误处理**: 完善的异常处理和恢复机制
-- **性能优化**: 定时器管理、防抖处理、批量操作
+- **加权随机选择**: 基于权重的小鸟选择算法
+- **资源管理**: 支持图片帧序列和彩色占位符
+- **错误处理**: 完善的异常处理和日志记录
+- **性能优化**: 看门狗配置、防抖处理、定时器管理
+- **线程安全**: 跨核访问LVGL使用互斥锁保护
 
-该系统已完全集成到ESP32主项目中，可以作为独立的观鸟功能模块稳定运行。
+### 文件结构
+```
+src/applications/modules/bird_watching/
+├── core/
+│   ├── bird_watching.h/cpp      # 主接口
+│   ├── bird_manager.h/cpp       # 核心管理器
+│   ├── bird_animation.h/cpp     # 动画播放
+│   ├── bird_selector.h/cpp      # 选择算法
+│   ├── bird_stats.h/cpp         # 统计系统
+│   ├── bird_types.h             # 类型定义
+│   └── bird_utils.h/cpp         # 工具函数
+├── ui/
+│   └── stats_view.h/cpp         # 统计界面
+└── screens/
+    └── bird_animation_bridge.h/cpp  # GUI桥接
+
+SD卡文件:
+├── /configs/bird_config.csv     # 小鸟配置
+├── /birds/{id}/                 # 小鸟图片资源
+└── /stats/bird_stats.json       # 统计数据
+```
+
+该系统已完全集成到ESP32主项目中，作为独立的功能模块稳定运行，支持实时交互和数据持久化。
