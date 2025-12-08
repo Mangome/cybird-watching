@@ -1,16 +1,17 @@
 # 🐦 CybirdWatching
 
-一个基于 ESP32 的智能观鸟显示设备，采用双核 FreeRTOS 架构，集成了多种传感器、触摸显示、网络通信和动画系统。
+一个基于 ESP32 的智能观鸟显示设备，采用双核 FreeRTOS 架构，集成了多种传感器和动画系统。
 当前项目的所有灵感和基础来自于[稚晖君的HoloCubic项目](https://github.com/peng-zhihui/HoloCubic)。
 
 ![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-ESP32-green.svg)
+![Platform](https://img.shields.io/badge/platform-ESP32%20PICO32-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Arduino-red.svg)
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
+![Build](https://img.shields.io/badge/build-PlatformIO-orange.svg)
 
 ## ✨ 特性
 
-### 🚀 v3.0 双核架构
+### 🚀 双核架构
 - **Core 0**: 专用 UI 渲染任务 (200Hz)
   - LVGL 图形界面系统
   - TFT 显示驱动
@@ -23,36 +24,40 @@
   - 业务逻辑处理
 
 ### 🎨 核心功能
-- 📺 **高性能图形界面** - 基于 LVGL 的流畅 UI
-- 🐦 **小鸟动画系统** - 20+ 种小鸟动画，支持随机触发
+- 📺 **高性能图形界面** - 基于 LVGL 的流畅 UI 系统
+- 🐦 **小鸟动画系统** - 支持多种小鸟动画，可按权重随机触发
 - 🎮 **IMU 手势控制** - MPU6050 六轴传感器作为输入设备
-- 💾 **SD 卡存储** - 配置文件、日志文件、图片资源存储
-- 📡 **WiFi 网络** - 支持无线连接和数据传输
+- 💾 **SD 卡存储** - 配置文件、日志文件、资源存储
 - 🌈 **RGB LED 指示** - FastLED 驱动的状态指示灯
-- 📊 **统计系统** - 观鸟记录和统计分析
+- 📊 **统计系统** - 观鸟记录和统计分析，支持界面查看
 - ⌨️ **串口命令系统** - 丰富的调试和控制命令
+- 🔧 **任务监控系统** - 实时监控双核任务状态
+- 📁 **文件管理** - 支持文件上传、下载、目录树查看
 
 ## 🛠️ 硬件要求
 
 - **主控**: ESP32 (PICO32)
-- **显示**: TFT LCD (TFT_eSPI 兼容)
-- **传感器**: MPU6050 (IMU)
-- **存储**: Micro SD 卡
+- **显示**: TFT LCD (240x240, TFT_eSPI 兼容)
+- **传感器**: MPU6050 六轴传感器 (IMU)
+- **存储**: Micro SD 卡 (建议 FAT32 格式)
 - **LED**: WS2812B RGB LED
-- **其他**: 环境光传感器（可选）
+- **接口**: USB 串口 (默认 115200 波特率)
 
 ## 📦 软件依赖
 
 ### 核心库
-- **Arduino** - ESP32 框架
+- **Arduino Framework** - ESP32 框架
 - **LVGL** - 轻量级图形库
 - **TFT_eSPI** - 高性能 TFT 驱动
-- **FastLED** - LED 控制库
+- **FastLED** - RGB LED 控制库
 - **MPU6050** - IMU 传感器驱动
+- **SPI/SD** - SD 卡存储驱动
 
 ### 开发工具
-- **PlatformIO** - 构建和烧录工具
+- **PlatformIO** - 项目构建和管理
 - **ESP32 Arduino Core** - ESP32 支持包
+- **Python 3.8+** - 脚本工具运行环境
+- **uv** - Python 包管理器（用于 CLI 工具）
 
 ## 🚀 快速开始
 
@@ -65,16 +70,39 @@ cd cybird-watching
 ### 2. 配置 PlatformIO
 确保已安装 [PlatformIO IDE](https://platformio.org/install) 或 PlatformIO Core。
 
+推荐用 Python 安装，本项目的 scripts 全部基于 Python 编写，后面也是会用到的。
+```bash
+pip install -U platformio
+```
+
 ### 3. 准备 SD 卡
-在 SD 卡根目录创建 `wifi.txt` 文件：
+将 SD 卡插入电脑，确保 SD 卡已格式化为 FAT32 格式。
+将 `resources/` 目录下的所有内容拷贝到 SD 卡根目录，不需要包含 `resources/` 目录本身。
+
+SD 卡内容结构：
 ```
-YourWiFiSSID
-YourWiFiPassword
+SD卡根目录/
+├── birds/              # 小鸟图片资源
+│   ├── 1001/          # 小鸟 ID 目录
+│   ├── 1002/
+│   └── ...
+├── configs/           # 配置文件
+│   └── bird_config.csv
+└── static/            # 静态资源
+    └── logo.bin       # 启动 Logo
 ```
 
-将小鸟图片资源放置在 SD 卡的相应目录。
+### 4. 串口配置修改
+本项目默认使用串口 **COM5**，波特率 **115200**。
 
-### 4. 编译和上传
+如需修改，编辑 `platformio.ini`：
+```ini
+monitor_speed = 115200
+upload_port = COM5      # 修改为你的端口
+```
+
+
+### 5. 编译和上传
 ```bash
 # 编译项目
 platformio run
@@ -86,7 +114,21 @@ platformio run --target upload
 platformio device monitor
 ```
 
-### 5. 首次启动
+也可以使用 `scripts/` 下的脚本（Windows）：
+```bash
+cd scripts
+
+# 编译项目
+.\pio_run.bat
+
+# 上传固件并监控
+.\upload_and_monitor.bat
+
+# 启动串口命令工具（交互式 CLI）
+.\cybird_cli.bat
+```
+
+### 6. 首次启动
 设备启动后会自动：
 1. 初始化所有硬件模块
 2. 加载 SD 卡配置
@@ -96,80 +138,160 @@ platformio device monitor
 ## 📖 使用说明
 
 ### 串口命令
+
+使用 `help` 显示所有可用的命令。
+
 连接串口（115200 波特率）后，可使用以下命令：
+
+#### 系统控制
+```bash
+help                # 显示所有可用命令
+status              # 显示系统状态
+reboot              # 重启设备（未实现）
+clear               # 清空终端屏幕
+```
 
 #### 小鸟系统
 ```bash
-bird trigger [id]    # 触发小鸟动画（可选指定小鸟ID，如 bird trigger 1001）
+bird trigger [id]   # 触发小鸟动画（可选指定小鸟ID，如 bird trigger 1001）
 bird list           # 列出所有小鸟
 bird stats          # 查看观鸟统计
+bird reset          # 重置统计数据
 ```
 
 #### 任务监控（v3.0 新增）
 ```bash
-task stats          # 查看任务统计信息
+task stats          # 查看任务统计信息（栈使用、CPU占用等）
 task info           # 查看详细系统信息
 ```
 
 #### 日志管理
 ```bash
-log level <level>   # 设置日志级别 (DEBUG/INFO/WARN/ERROR)
-log cat             # 查看日志内容
+log                 # 查看日志内容（默认最后 20 行）
+log lines <N>       # 查看最后 N 行日志
+log cat             # 查看完整日志内容
 log clear           # 清空日志文件
+log size            # 查看日志文件大小
+log level <level>   # 设置日志级别 (DEBUG/INFO/WARN/ERROR)
 ```
 
-#### 系统控制
+#### 文件管理（v3.0 新增）
 ```bash
-help                # 显示帮助信息
-reboot              # 重启设备
+tree [path] [levels]    # 显示 SD 卡目录树（默认根目录，2 层）
+file upload <path>      # 上传文件（需要 CLI 工具）
+file download <path>    # 下载文件（需要 CLI 工具）
+file delete <path>      # 删除文件
+file info <path>        # 查看文件信息
 ```
 
 ### IMU 手势控制
-- **倾斜设备**: 触发小鸟动画
-- **晃动设备**: 切换界面场景
+- **切换小鸟**：在小鸟展示界面，保持左倾/右倾可以触发切换小鸟（CD 为 10 秒），触发成功 LED 闪烁蓝灯
+- **统计界面**：保持前倾进入统计界面，触发成功 LED 闪烁绿光。在统计界面内，保持左倾/右倾进行翻页
+- **退出统计**：在统计界面保持后倾可退出到小鸟界面
+
+### CLI 工具（推荐）
+项目提供了完善的 Python CLI 工具，位于 `scripts/cybird_watching_cli/`：
+
+```bash
+# 安装 uv（如果还没有）
+pip install -U uv
+
+# 使用快捷脚本（推荐）
+cd scripts
+.\cybird_cli.bat          # 启动交互式 CLI
+
+# 或直接进入 CLI 目录
+cd scripts/cybird_watching_cli
+uv run cybird-cli         # 交互模式
+uv run cybird-cli send "bird trigger"  # 单命令模式
+```
+
+CLI 工具特性：
+- 🎯 交互式命令行界面
+- 📝 命令历史和自动补全
+- 🎨 彩色输出
+- 📁 文件上传/下载支持
+- 🔄 自动重连
+
+详见：[CLI 工具使用指南](scripts/README_CLI_TOOLS.md)
 
 ## 📁 项目结构
 
 ```
 cybird-watching/
-├── src/
-│   ├── main.cpp                          # 主程序入口
+├── src/                                  # 源代码
+│   ├── main.cpp                          # 主程序入口（双核任务初始化）
+│   ├── config/                           # 配置文件
+│   │   └── guider_fonts.h                # LVGL 字体配置
 │   ├── drivers/                          # 硬件驱动层
-│   │   ├── display/                      # 显示驱动
+│   │   ├── display/                      # 显示驱动 (TFT_eSPI)
 │   │   ├── sensors/                      # 传感器驱动
 │   │   │   ├── imu/                      # IMU (MPU6050)
 │   │   │   └── ambient/                  # 环境传感器
 │   │   ├── communication/network/        # WiFi 网络
 │   │   ├── storage/sd_card/              # SD 卡存储
-│   │   └── io/rgb_led/                   # RGB LED
+│   │   └── io/rgb_led/                   # RGB LED (FastLED)
 │   ├── system/                           # 系统服务层
-│   │   ├── logging/                      # 日志管理
-│   │   ├── commands/                     # 串口命令
-│   │   ├── tasks/                        # 任务管理器 (v3.0)
+│   │   ├── logging/                      # 日志管理系统
+│   │   ├── commands/                     # 串口命令系统
+│   │   ├── tasks/                        # 任务管理器 (v3.0 双核架构)
 │   │   └── lvgl/ports/                   # LVGL 端口层
+│   │       ├── lv_port_indev.c           # 输入设备端口
+│   │       └── lv_port_fatfs.c           # 文件系统端口
 │   └── applications/                     # 应用层
 │       ├── gui/                          # 图形界面
 │       │   ├── core/                     # GUI 核心
+│       │   │   ├── lv_cubic_gui.cpp      # GUI 主逻辑
+│       │   │   ├── gui_guider.c          # GUI 引导
+│       │   │   └── events_init.c         # 事件初始化
 │       │   └── screens/                  # 界面屏幕
+│       │       ├── setup_scr_home.c      # 主屏幕
+│       │       ├── setup_scr_scenes.c    # 场景屏幕
+│       │       └── bird_animation_bridge.cpp  # 动画桥接
 │       └── modules/                      # 功能模块
-│           └── bird_watching/            # 观鸟模块
-│               └── core/                 # 核心逻辑
-│                   ├── bird_animation.cpp    # 动画系统
-│                   ├── bird_manager.cpp      # 管理器
-│                   ├── bird_selector.cpp     # 选择器
-│                   ├── bird_stats.cpp        # 统计系统
-│                   └── bird_watching.cpp     # 主模块
-├── lib/                                  # 外部库
-├── resources/                            # 资源文件
-│   ├── fonts/                            # 字体文件
-│   └── images/                           # 图片资源
+│           ├── bird_watching/            # 观鸟模块
+│           │   ├── core/                 # 核心逻辑
+│           │   │   ├── bird_animation.cpp    # 动画系统
+│           │   │   ├── bird_manager.cpp      # 小鸟管理器
+│           │   │   ├── bird_selector.cpp     # 小鸟选择器
+│           │   │   ├── bird_stats.cpp        # 统计系统
+│           │   │   ├── bird_utils.cpp        # 工具函数
+│           │   │   ├── bird_types.h          # 类型定义
+│           │   │   └── bird_watching.cpp     # 主模块
+│           │   └── ui/                   # UI 组件
+│           │       └── stats_view.cpp        # 统计视图
+│           └── resources/                # 资源文件
+│               ├── fonts/                # 嵌入字体
+│               └── images/               # 嵌入图片
+├── lib/                                  # 第三方库
+│   └── [多个外部库]
+├── resources/                            # SD 卡资源文件
+│   ├── birds/                            # 小鸟图片资源（按 ID 分目录）
+│   ├── configs/                          # 配置文件
+│   │   └── bird_config.csv               # 小鸟配置
+│   └── static/                           # 静态资源
+│       └── logo.bin                      # 启动 Logo
+├── scripts/                              # 工具脚本
+│   ├── cybird_cli.bat                    # CLI 快捷启动
+│   ├── upload_and_monitor.bat            # 上传监控脚本
+│   ├── pio_run.bat                       # 编译脚本
+│   ├── README_CLI_TOOLS.md               # CLI 工具说明
+│   ├── cybird_watching_cli/              # Python CLI 工具
+│   ├── converter/                        # 图片转换工具
+│   ├── mp4converter/                     # 视频转换工具
+│   └── uniq_fonts/                       # 字体工具
 ├── docs/                                 # 项目文档
-│   ├── CHANGELOG_v3.0.md                 # 更新日志
+│   ├── CHANGELOG_v3.0.md                 # v3.0 更新日志
 │   ├── DUAL_CORE_ARCHITECTURE.md         # 双核架构说明
 │   ├── bird_watching_flow_diagram.md     # 流程图
-│   └── bird_watching_test_guide.md       # 测试指南
+│   ├── bird_watching_test_guide.md       # 测试指南
+│   ├── stats_view_guide.md               # 统计视图指南
+│   ├── file_transfer_guide.md            # 文件传输指南
+│   ├── CHANGE_FONT_SIZE.md               # 字体修改指南
+│   └── lvgl_9x_upgrade_analysis.md       # LVGL 升级分析
 ├── platformio.ini                        # PlatformIO 配置
-├── CLAUDE.md                             # 开发指南
+├── CLAUDE.md                             # 如果你也用 Claude Code，可以直接使用
+├── LICENSE                               # MIT 许可证
 └── README.md                             # 本文件
 ```
 
@@ -198,108 +320,223 @@ cybird-watching/
     └──────────────────────────────────────┘
 ```
 
-### 系统初始化流程
-1. 串口通信初始化 (115200 baud)
-2. 日志系统初始化（串口输出）
-3. 串口命令系统初始化
-4. 显示屏初始化 + 背光设置
-5. LVGL 输入设备初始化
-6. MPU6050 传感器初始化
-7. RGB LED 初始化
-8. SD 卡初始化 + 日志系统切换到 SD 卡
-9. WiFi 配置读取
-10. GUI 界面创建
-11. 任务管理器初始化（创建 LVGL 互斥锁）
-12. 小鸟观察系统初始化
-13. 启动双核 FreeRTOS 任务
-
-## 📊 性能指标
-
-| 指标 | v2.0 | v3.0 | 提升 |
-|------|------|------|------|
-| UI 帧率稳定性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | +67% |
-| 系统响应速度 | 100ms | 10ms | 10x |
-| CPU 利用率 | ~50% | ~85% | +70% |
-| 动画流畅度 | 偶尔卡顿 | 完全流畅 | 质的提升 |
-
 ## 🔧 开发指南
 
 ### 添加新的串口命令
 编辑 `src/system/commands/serial_commands.cpp`：
 
 ```cpp
-void SerialCommands::registerCommands() {
-    // 添加你的命令
-    registerCommand("mycommand", [](const String& args) {
+void SerialCommands::initialize() {
+    // 注册你的命令
+    registerCommand("mycommand", "My command description");
+}
+
+void SerialCommands::processCommand(const String& command, const String& args) {
+    if (command == "mycommand") {
         Serial.println("Command executed!");
-    }, "My command description");
+        // 你的逻辑
+    }
 }
 ```
 
 ### 访问 LVGL 对象（线程安全）
+在 v3.0 双核架构中，所有跨任务访问 LVGL 对象都必须加锁：
+
 ```cpp
 TaskManager* taskMgr = TaskManager::getInstance();
 
+// 获取互斥锁（最多等待 100ms）
 if (taskMgr->takeLVGLMutex(100)) {
     // 安全地访问 LVGL 对象
     lv_obj_set_pos(obj, x, y);
+    lv_label_set_text(label, "Hello");
+    
+    // 释放互斥锁
     taskMgr->giveLVGLMutex();
+} else {
+    LOG_ERROR("TAG", "Failed to take LVGL mutex");
 }
 ```
 
 ### 添加新的小鸟动画
-1. 将小鸟图片序列放入 SD 卡
-2. 在 `bird_manager.cpp` 中注册新小鸟
-3. 使用 `bird trigger` 命令测试
+1. 准备小鸟图片序列（建议 240x240 像素）
+2. 使用 `scripts/converter/` 工具转换为 bin 格式
+3. 在 SD 卡创建新目录（如 `/birds/1014/`）
+4. 在 `resources/configs/bird_config.csv` 添加配置：
+   ```csv
+   1014,新鸟名称,10
+   ```
+5. 使用 `bird trigger 1014` 命令测试
+
+### 使用日志系统
+```cpp
+#include "system/logging/log_manager.h"
+
+// 不同级别的日志
+LOG_DEBUG("TAG", "Debug message");
+LOG_INFO("TAG", "Info message");
+LOG_WARN("TAG", "Warning message");
+LOG_ERROR("TAG", "Error message");
+
+// 格式化日志
+LOG_INFO("TAG", "Value: %d, String: %s", value, str);
+```
 
 ## 🐛 故障排查
 
-### UI 卡顿
+### UI 卡顿或动画不流畅
 ```bash
-task stats          # 检查栈使用情况
-task info           # 查看系统信息
+task stats          # 检查栈使用情况和 CPU 占用
+task info           # 查看详细系统信息
 ```
-- 检查 UI 任务栈是否溢出
-- 检查是否有未释放的互斥锁
-- 考虑增加 UI 任务优先级
+**可能原因：**
+- UI 任务栈溢出（检查剩余栈空间）
+- LVGL 互斥锁死锁（检查是否有未释放的锁）
+- SD 卡读取速度慢（使用高速卡）
+- 考虑增加 UI 任务优先级或栈大小
 
 ### 串口命令无响应
-- 确认波特率为 115200
-- 检查系统任务是否正常运行
-- 查看 `task stats` 确认任务状态
+**可能原因：**
+- 波特率不匹配（确认为 115200）
+- 系统任务崩溃（查看 `task stats`）
+- 串口被其他程序占用
+- 看门狗复位（检查日志）
+
+**解决方法：**
+```bash
+# 重启设备
+按下 RST 按钮
+
+# 检查任务状态
+task stats
+
+# 查看日志
+log lines 50
+```
 
 ### SD 卡读取失败
-- 确认 SD 卡格式为 FAT32
-- 检查文件路径是否正确
-- 查看日志文件中的错误信息
+**可能原因：**
+- SD 卡格式不是 FAT32
+- SD 卡接触不良
+- 文件路径错误
+- SD 卡容量过大（建议 ≤32GB）
+
+**解决方法：**
+```bash
+# 查看 SD 卡目录
+tree / 2
+
+# 查看日志中的错误
+log cat
+
+# 检查文件是否存在
+file info /birds/1001/0.bin
+```
+
+### 小鸟动画不显示
+**可能原因：**
+- 图片文件缺失或损坏
+- 配置文件错误
+- 内存不足
+
+**解决方法：**
+```bash
+# 列出所有小鸟
+bird list
+
+# 查看统计（确认资源是否加载）
+bird stats
+
+# 手动触发测试
+bird trigger 1001
+
+# 查看日志
+log lines 100
+```
+
+### 任务栈溢出
+**症状：**系统频繁重启，日志显示 "Stack overflow"
+
+**解决方法：**
+编辑 `src/system/tasks/task_manager.cpp`：
+```cpp
+// 增加栈大小
+#define UI_TASK_STACK_SIZE      10240  // 改为 10KB
+#define SYSTEM_TASK_STACK_SIZE  10240  // 改为 10KB
+```
 
 ## 📝 更新日志
 
-### v3.0.0 (2025-12-02)
+### v3.0.0 (2025-12-02) - 双核架构重构
+**重大更新：**
 - ✨ 引入双核 FreeRTOS 架构
+  - Core 0: UI 渲染任务 (200Hz)
+  - Core 1: 系统逻辑任务 (100Hz)
 - ✨ UI 和系统逻辑完全分离
-- ✨ 新增任务监控命令
+- ✨ 新增任务监控命令（`task stats`, `task info`）
+- ✨ 新增文件管理命令（`tree`, `file upload/download`）
+- ✨ 完善的 Python CLI 工具
 - 🚀 性能提升约 70%
+- 🚀 UI 帧率稳定性提升 67%
 - 🐛 修复动画卡顿问题
+- 🐛 修复 SD 卡初始化时序问题
 
 详见 [CHANGELOG_v3.0.md](docs/CHANGELOG_v3.0.md)
 
 ## 📚 相关文档
 
-- [双核架构详细说明](docs/DUAL_CORE_ARCHITECTURE.md)
-- [观鸟系统流程图](docs/bird_watching_flow_diagram.md)
-- [测试指南](docs/bird_watching_test_guide.md)
-- [开发指南](CLAUDE.md)
+### 核心文档
+- [双核架构详细说明](docs/DUAL_CORE_ARCHITECTURE.md) - FreeRTOS 双核设计
+- [开发指南](CLAUDE.md) - AI 辅助开发说明
+
+### 功能文档
+- [观鸟系统流程图](docs/bird_watching_flow_diagram.md) - 系统流程详解
+- [测试指南](docs/bird_watching_test_guide.md) - 功能测试步骤
+- [统计视图指南](docs/stats_view_guide.md) - 统计界面使用
+
+### 工具文档
+- [CLI 工具使用](scripts/README_CLI_TOOLS.md) - 命令行工具指南
+- [文件传输指南](docs/file_transfer_guide.md) - 文件上传下载
+- [字体修改指南](docs/CHANGE_FONT_SIZE.md) - 自定义字体大小
+
+### 技术分析
+- [LVGL 9.x 升级分析](docs/lvgl_9x_upgrade_analysis.md) - 版本升级注意事项
 
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
 
+### 贡献指南
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+### 代码规范
+- 使用清晰的注释（中文或英文）
+- 遵循现有代码风格
+- 添加必要的文档说明
+- 测试新功能的稳定性
+
 ## 📄 许可证
 
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
+本项目采用 **MIT 许可证**。详见 [LICENSE](LICENSE) 文件。
 
+Copyright (c) 2025 Mango
+
+## 🙏 致谢
+
+- [HoloCubic](https://github.com/peng-zhihui/HoloCubic) - 项目灵感和基础框架
+- [LVGL](https://lvgl.io/) - 图形库支持
+- ESP32 社区 - 硬件和技术支持
+
+---
+
+<div align="center">
 
 **🐦 Happy Bird Watching! 🐦**
 
 *让科技与自然相遇，用代码记录美好瞬间*
+
+</div>
