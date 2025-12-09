@@ -5,6 +5,7 @@
 #include "Arduino.h"
 #include "SD.h"
 #include "system/logging/log_manager.h"
+#include "config/version.h"
 
 // C语言全局变量
 extern "C" {
@@ -14,6 +15,7 @@ extern "C" {
 // C++内部使用的静态变量
 static lv_obj_t* logo_img = NULL;
 static lv_obj_t* logo_scr = NULL;
+static lv_obj_t* logo_version_label = NULL;  // 版本号标签
 static lv_image_dsc_t* logo_img_dsc = NULL;
 static uint8_t* logo_img_data = NULL;
 static uint32_t logo_show_time = 0;  // logo显示的开始时间
@@ -58,6 +60,7 @@ static void hideLogo()
 		lv_obj_del(logo_scr);
 		logo_scr = NULL;
 		logo_img = NULL;  // logo_img 是 logo_scr 的子对象,会被自动删除
+		logo_version_label = NULL;  // logo_version_label 也是 logo_scr 的子对象,会被自动删除
 		LOG_INFO("GUI", "Logo screen deleted");
 	}
 	
@@ -212,6 +215,20 @@ void lv_init_gui(void)
 		// 居中显示
 		lv_obj_center(logo_img);
 		
+		// 创建版本号标签
+		logo_version_label = lv_label_create(logo_scr);
+		lv_label_set_text(logo_version_label, FIRMWARE_VERSION_FULL);
+		
+		// 设置版本号样式
+		lv_obj_set_style_text_color(logo_version_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+		lv_obj_set_style_text_font(logo_version_label, &lv_font_notosanssc_18, LV_PART_MAIN);
+		
+		// 位置：右下角，距离边缘 10 像素
+		lv_obj_align(logo_version_label, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+		
+		// 确保版本号可见
+		lv_obj_clear_flag(logo_version_label, LV_OBJ_FLAG_HIDDEN);
+		
 		// 加载logo屏幕（从黑屏切换到logo）
 		lv_scr_load(logo_scr);
 		
@@ -220,7 +237,7 @@ void lv_init_gui(void)
 		logo_visible = true;
 		logo_timeout_enabled = false;  // 初始禁用超时检查，等待资源扫描完成
 		
-		LOG_INFO("GUI", "Logo screen loaded (timeout check disabled during resource scan)");
+		LOG_INFO("GUI", "Logo screen loaded with version " + String(FIRMWARE_VERSION_FULL) + " (timeout check disabled during resource scan)");
 	} else {
 		LOG_WARN("GUI", "Failed to load logo, showing bird scene directly");
 		// 如果logo加载失败,直接加载小鸟界面(不创建logo屏幕)
