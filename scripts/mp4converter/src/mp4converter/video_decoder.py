@@ -68,8 +68,8 @@ class VideoDecoder:
     # 最大文件大小限制 (100MB)
     MAX_FILE_SIZE = 100 * 1024 * 1024
 
-    # 最大分辨率限制 (1080p)
-    MAX_RESOLUTION = (1920, 1080)
+    # 最大分辨率限制 (1440p)
+    MAX_RESOLUTION = (2560, 1440)
 
     def __init__(self, max_memory_mb: int = 512):
         """初始化视频解码器
