@@ -10,6 +10,10 @@
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
 ![Build](https://img.shields.io/badge/build-PlatformIO-orange.svg)
 
+**资源说明**
+本项目中附带的所有动画资源为网络资源通过 AI 生成的视频，如有侵权，请联系删除。
+
+
 ## 📑 目录
 
 - [✨ 特性](#-特性)
@@ -530,6 +534,8 @@ Copyright (c) 2025 Mango
 - [HoloCubic](https://github.com/peng-zhihui/HoloCubic) - 项目灵感和基础框架
 - [LVGL](https://lvgl.io/) - 图形库支持
 - ESP32 社区 - 硬件和技术支持
+- 懂鸟 - 鸟类知识科普平台
+- 所有的观鸟爱好者 🐦💕
 
 ---
 
