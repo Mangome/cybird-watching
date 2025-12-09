@@ -184,12 +184,6 @@ bird stats          # 查看观鸟统计
 bird reset          # 重置统计数据
 ```
 
-#### 任务监控
-```bash
-task stats          # 查看任务统计信息（栈使用、CPU占用等）
-task info           # 查看详细系统信息
-```
-
 #### 日志管理
 ```bash
 log                 # 查看日志内容（默认最后 20 行）
@@ -294,12 +288,12 @@ cybird-watching/
 ├── docs/                                 # 项目文档
 │   ├── CHANGELOG_v3.0.md                 # v3.0 更新日志
 │   ├── DUAL_CORE_ARCHITECTURE.md         # 双核架构说明
-│   ├── bird_watching_flow_diagram.md     # 流程图
+│   ├── BIRD_WATCHING_FLOW_DIAGRAM.md     # 流程图
 │   ├── bird_watching_test_guide.md       # 测试指南
-│   ├── stats_view_guide.md               # 统计视图指南
-│   ├── file_transfer_guide.md            # 文件传输指南
+│   ├── STATS_VIEW_GUIDE.md               # 统计视图指南
+│   ├── FILE_TRANSFER_GUIDE.md            # 文件传输指南
 │   ├── CHANGE_FONT_SIZE.md               # 字体修改指南
-│   └── lvgl_9x_upgrade_analysis.md       # LVGL 升级分析
+│   └── LVGL_9X_UPGRADE_ANALYSIS.md       # LVGL 升级分析
 ├── platformio.ini                        # PlatformIO 配置
 ├── CLAUDE.md                             # 如果你也用 Claude Code，可以直接使用
 ├── LICENSE                               # MIT 许可证
@@ -408,9 +402,6 @@ task info           # 查看详细系统信息
 
 **解决方法：**
 ```bash
-# 重启设备
-按下 RST 按钮
-
 # 检查任务状态
 task stats
 
@@ -469,24 +460,6 @@ log lines 100
 #define SYSTEM_TASK_STACK_SIZE  10240  // 改为 10KB
 ```
 
-## 📝 更新日志
-
-### v3.0.0 (2025-12-02) - 双核架构重构
-**重大更新：**
-- ✨ 引入双核 FreeRTOS 架构
-  - Core 0: UI 渲染任务 (200Hz)
-  - Core 1: 系统逻辑任务 (100Hz)
-- ✨ UI 和系统逻辑完全分离
-- ✨ 新增任务监控命令（`task stats`, `task info`）
-- ✨ 新增文件管理命令（`tree`, `file upload/download`）
-- ✨ 完善的 Python CLI 工具
-- 🚀 性能提升约 70%
-- 🚀 UI 帧率稳定性提升 67%
-- 🐛 修复动画卡顿问题
-- 🐛 修复 SD 卡初始化时序问题
-
-详见 [CHANGELOG_v3.0.md](docs/CHANGELOG_v3.0.md)
-
 ## 📚 相关文档
 
 ### 核心文档
@@ -494,17 +467,17 @@ log lines 100
 - [开发指南](CLAUDE.md) - AI 辅助开发说明
 
 ### 功能文档
-- [观鸟系统流程图](docs/bird_watching_flow_diagram.md) - 系统流程详解
+- [观鸟系统流程图](docs/BIRD_WATCHING_FLOW_DIAGRAM.md) - 系统流程详解
 - [测试指南](docs/bird_watching_test_guide.md) - 功能测试步骤
-- [统计视图指南](docs/stats_view_guide.md) - 统计界面使用
+- [统计视图指南](docs/STATS_VIEW_GUIDE.md) - 统计界面使用
 
 ### 工具文档
 - [CLI 工具使用](scripts/README_CLI_TOOLS.md) - 命令行工具指南
-- [文件传输指南](docs/file_transfer_guide.md) - 文件上传下载
+- [文件传输指南](docs/FILE_TRANSFER_GUIDE.md) - 文件上传下载
 - [字体修改指南](docs/CHANGE_FONT_SIZE.md) - 自定义字体大小
 
 ### 技术分析
-- [LVGL 9.x 升级分析](docs/lvgl_9x_upgrade_analysis.md) - 版本升级注意事项
+- [LVGL 9.x 升级分析](docs/LVGL_9X_UPGRADE_ANALYSIS.md) - 版本升级注意事项
 
 ## 🤝 贡献
 
