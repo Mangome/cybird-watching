@@ -2,19 +2,16 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-:: 读取platformio.ini中的配置
 set "INI_FILE=%~dp0..\platformio.ini"
 
 if not exist "%INI_FILE%" (
-    echo 错误: 找不到 platformio.ini
+    echo platformio.ini not found
     exit /b 1
 )
 
-:: 读取upload_port和monitor_speed
 for /f "usebackq tokens=1,* delims==" %%a in ("%INI_FILE%") do (
     set "key=%%a"
     set "value=%%b"
-    :: 去除空格
     set "key=!key: =!"
     set "value=!value: =!"
     
@@ -26,5 +23,4 @@ for /f "usebackq tokens=1,* delims==" %%a in ("%INI_FILE%") do (
     )
 )
 
-:: 导出变量供调用脚本使用
 endlocal & set "COM_PORT=%COM_PORT%" & set "BAUD_RATE=%BAUD_RATE%"

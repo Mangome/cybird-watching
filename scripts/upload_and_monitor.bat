@@ -5,8 +5,8 @@ call "%~dp0read_platformio.bat"
 if "%COM_PORT%"=="" set "COM_PORT=COM3"
 if "%BAUD_RATE%"=="" set "BAUD_RATE=115200"
 
-echo 使用端口: %COM_PORT%
-echo 波特率: %BAUD_RATE%
+echo port: %COM_PORT%
+echo baud_rate: %BAUD_RATE%
 echo.
 
 cd /d "%~dp0..\"
