@@ -36,8 +36,8 @@ public:
 private:
     lv_obj_t* display_obj_;      // LVGL显示对象
     BirdInfo current_bird_;      // 当前小鸟信息
-    uint8_t current_frame_;      // 当前帧
-    uint8_t current_frame_count_; // 当前小鸟的实际帧数
+    uint16_t current_frame_;     // 当前帧（支持最多65535帧）
+    uint16_t current_frame_count_; // 当前小鸟的实际帧数（支持最多65535帧）
     lv_timer_t* play_timer_;      // 播放定时器 (LVGL 9.x: lv_task_t → lv_timer_t)
     bool is_playing_;            // 播放状态
     bool frame_processing_;      // 当前是否正在处理帧
@@ -72,10 +72,10 @@ private:
     BirdBundleLoader bundle_loader_;
 
     // 获取帧文件路径
-    std::string getFramePath(uint8_t frame_index) const;
+    std::string getFramePath(uint16_t frame_index) const;
 
     // 加载并显示指定帧
-    bool loadAndShowFrame(uint8_t frame_index);
+    bool loadAndShowFrame(uint16_t frame_index);
 
     // 播放下一帧
     void playNextFrame();
@@ -85,9 +85,9 @@ private:
 
     // 手动加载图像（LVGL无法直接加载时使用）
     bool tryManualImageLoad(const std::string& file_path);
-    
+
     // 预加载图像到缓冲区
-    bool preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
+    bool preloadFrameToBuffer(uint16_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
     
     // 交换当前帧和下一帧缓冲区
     void swapBuffers();

@@ -66,7 +66,7 @@ bool BirdBundleLoader::loadBundle(const std::string& bundle_path) {
     return true;
 }
 
-bool BirdBundleLoader::loadFrame(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
+bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
     if (!is_loaded_) {
         LOG_ERROR("BUNDLE", "Bundle not loaded");
         return false;

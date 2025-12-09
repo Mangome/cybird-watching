@@ -10,7 +10,7 @@ namespace Utils {
 constexpr uint32_t BUNDLE_MAGIC = 0x42495244;
 constexpr uint8_t RGB565_COLOR_FORMAT = 0x12;
 
-uint8_t detectFrameCount(uint16_t bird_id) {
+uint16_t detectFrameCount(uint16_t bird_id) {
     // Bundle模式：直接从bundle文件头读取帧数
     char bundle_path[64];
     snprintf(bundle_path, sizeof(bundle_path), "/birds/%d/bundle.bin", bird_id);
@@ -57,8 +57,8 @@ uint8_t detectFrameCount(uint16_t bird_id) {
         return 0;
     }
 
-    // 验证帧数合理性
-    if (frame_count == 0 || frame_count > 200) {
+    // 验证帧数合理性（支持最多65535帧）
+    if (frame_count == 0 || frame_count > 65535) {
         Serial.printf("[WARN] Suspicious frame count: %d\n", frame_count);
         return 0;
     }

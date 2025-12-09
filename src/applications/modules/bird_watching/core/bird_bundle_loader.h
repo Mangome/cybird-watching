@@ -58,12 +58,12 @@ public:
     /**
      * 从bundle中加载指定帧
      *
-     * @param frame_index 帧索引 (0-based)
+     * @param frame_index 帧索引 (0-based，最大65535)
      * @param out_dsc 输出LVGL图像描述符指针
      * @param out_data 输出图像数据指针
      * @return 成功返回true
      */
-    bool loadFrame(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
+    bool loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
 
     /**
      * 获取bundle中的帧数

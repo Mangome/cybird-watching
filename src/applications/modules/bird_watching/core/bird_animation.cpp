@@ -176,14 +176,14 @@ void BirdAnimation::setDisplayObject(lv_obj_t* obj) {
     display_obj_ = obj;
 }
 
-std::string BirdAnimation::getFramePath(uint8_t frame_index) const {
+std::string BirdAnimation::getFramePath(uint16_t frame_index) const {
     char path[128];
     snprintf(path, sizeof(path), "/birds/%d/%d.bin",
              current_bird_.id, frame_index + 1); // 从1开始编号，格式为1.bin, 2.bin等
     return std::string(path);
 }
 
-bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
+bool BirdAnimation::loadAndShowFrame(uint16_t frame_index) {
     if (!display_obj_) {
         LOG_ERROR("ANIM", "Display object not set");
         return false;
@@ -254,7 +254,7 @@ void BirdAnimation::playNextFrame() {
     if (now - last_frame_time_ < FRAME_INTERVAL_MS) {
         // 利用空闲时间预加载下一帧（25MHz SD卡足够快）
         if (preload_enabled_ && !next_frame_ready_) {
-            uint8_t next_frame = (current_frame_ + 1) % current_frame_count_;
+            uint16_t next_frame = (current_frame_ + 1) % current_frame_count_;
             
             // 检查剩余时间是否足够预加载（至少需要20ms）
             uint32_t time_left = FRAME_INTERVAL_MS - (now - last_frame_time_);
@@ -569,7 +569,7 @@ void BirdAnimation::timerCallback(lv_timer_t* timer) {
     animation->playNextFrame();
 }
 
-bool BirdAnimation::preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
+bool BirdAnimation::preloadFrameToBuffer(uint16_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
     if (!out_dsc || !out_data) {
         LOG_ERROR("ANIM", "Invalid output parameters for preload");
         return false;

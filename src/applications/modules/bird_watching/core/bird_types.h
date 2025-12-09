@@ -16,7 +16,7 @@ struct BirdInfo {
     uint16_t id;               // 小鸟ID
     std::string name;          // 小鸟名称（中文）
     uint16_t weight;           // 权重（用于随机选择）
-    mutable uint8_t frame_count; // 帧数缓存（0表示未检测，使用mutable允许在const方法中修改）
+    mutable uint16_t frame_count; // 帧数缓存（0表示未检测，支持最多65535帧，使用mutable允许在const方法中修改）
 
     BirdInfo() : id(0), name(""), weight(10), frame_count(0) {}
     BirdInfo(uint16_t bird_id, const std::string& bird_name, uint16_t bird_weight = 10)
