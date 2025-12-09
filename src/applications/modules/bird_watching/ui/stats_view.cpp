@@ -4,6 +4,7 @@
 #include "../core/bird_types.h"
 #include "system/logging/log_manager.h"
 #include "config/guider_fonts.h"
+#include "config/ui_texts.h"
 
 namespace BirdWatching {
 
@@ -77,14 +78,14 @@ void StatsView::createUI(lv_obj_t* parent) {
 
     // 创建\"上一页\"标签（左对齐）
     prev_label_ = lv_label_create(container_);
-    lv_label_set_text(prev_label_, "上一页");
+    lv_label_set_text(prev_label_, UITexts::StatsView::PREV_PAGE);
     lv_obj_set_style_text_color(prev_label_, lv_color_hex(0x888888), LV_PART_MAIN);
     lv_obj_set_style_text_font(prev_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
     lv_obj_align(prev_label_, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
     // 创建\"下一页\"标签（右对齐）
     next_label_ = lv_label_create(container_);
-    lv_label_set_text(next_label_, "下一页");
+    lv_label_set_text(next_label_, UITexts::StatsView::NEXT_PAGE);
     lv_obj_set_style_text_color(next_label_, lv_color_hex(0x888888), LV_PART_MAIN);
     lv_obj_set_style_text_font(next_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
     lv_obj_align(next_label_, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
@@ -191,7 +192,7 @@ void StatsView::updateBirdList() {
                          bird.id, bird.name.c_str(), count);
             } else {
                 // 未解锁：显示 "？？？"
-                snprintf(text, sizeof(text), "#666666 ？？？#");
+                snprintf(text, sizeof(text), "#666666 %s#", UITexts::StatsView::UNKNOWN_BIRD);
             }
             
             lv_label_set_text(bird_labels_[i], text);
@@ -224,7 +225,7 @@ void StatsView::updateBirdList() {
 
 std::string StatsView::getBirdName(uint16_t bird_id) const {
     if (!selector_) {
-        return "Unknown";
+        return UITexts::BirdInfo::UNKNOWN;
     }
 
     const std::vector<BirdInfo>& all_birds = selector_->getAllBirds();
@@ -234,7 +235,7 @@ std::string StatsView::getBirdName(uint16_t bird_id) const {
         }
     }
 
-    return "Unknown";
+    return UITexts::BirdInfo::UNKNOWN;
 }
 
 } // namespace BirdWatching

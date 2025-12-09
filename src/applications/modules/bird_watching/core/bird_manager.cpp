@@ -3,6 +3,7 @@
 #include "system/logging/log_manager.h"
 #include "drivers/sensors/imu/imu.h"
 #include "drivers/io/rgb_led/rgb_led.h"
+#include "config/ui_texts.h"
 #include <cstdlib>
 #include <ctime>
 
@@ -512,13 +513,18 @@ void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, b
     if (is_new) {
         // 新小鸟: "加新{小鸟名字}！"
         snprintf(info_text, sizeof(info_text), 
-                 "#FFFFFF 加新##87CEEB %s##FFFFFF ！#", 
-                 bird_name.c_str());
+                 "#FFFFFF %s##87CEEB %s##FFFFFF %s#", 
+                 UITexts::BirdInfo::NEW_BIRD_PREFIX,
+                 bird_name.c_str(),
+                 UITexts::BirdInfo::NEW_BIRD_SUFFIX);
     } else {
         // 已见过: "{小鸟名字}来了{count}次！"
         snprintf(info_text, sizeof(info_text), 
-                 "#87CEEB %s##FFFFFF 来了##87CEEB %d##FFFFFF 次！#", 
-                 bird_name.c_str(), count);
+                 "#87CEEB %s##FFFFFF %s##87CEEB %d##FFFFFF %s#", 
+                 bird_name.c_str(),
+                 UITexts::BirdInfo::VISIT_COUNT_MIDDLE,
+                 count,
+                 UITexts::BirdInfo::VISIT_COUNT_SUFFIX);
     }
 
     // 启用重新着色模式
