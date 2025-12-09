@@ -2,6 +2,7 @@
 #define BIRD_ANIMATION_H
 
 #include "bird_types.h"
+#include "bird_bundle_loader.h"
 #include <string>
 
 namespace BirdWatching {
@@ -66,6 +67,9 @@ private:
 
     // 标志：是否在UI任务中运行
     bool running_in_ui_task_;
+
+    // Bundle加载器
+    BirdBundleLoader bundle_loader_;
 
     // 获取帧文件路径
     std::string getFramePath(uint8_t frame_index) const;

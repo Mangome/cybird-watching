@@ -87,25 +87,20 @@ bool BirdAnimation::loadBird(const BirdInfo& bird_info) {
     current_bird_ = bird_info;
     current_frame_ = 0;
 
-    // 优先使用缓存的帧数，避免重复检测
-    if (bird_info.frame_count > 0) {
-        current_frame_count_ = bird_info.frame_count;
-        LOG_DEBUG("ANIM", "Using cached frame count: " + String(current_frame_count_));
-    } else {
-        // 只在必要时才检测帧数（使用公共工具函数）
-        current_frame_count_ = Utils::detectFrameCount(current_bird_.id);
-        if (current_frame_count_ == 0) {
-            LOG_WARN("ANIM", "No frames found for bird, using default");
-            current_frame_count_ = 8; // 默认帧数
-        } else {
-            // 更新缓存（虽然是const引用，但frame_count是mutable的）
-            bird_info.frame_count = current_frame_count_;
-        }
+    // 构建bundle文件路径
+    char bundle_path[64];
+    snprintf(bundle_path, sizeof(bundle_path), "/birds/%d/bundle.bin", bird_info.id);
+
+    // 加载bundle文件（必需，无后备方案）
+    if (!bundle_loader_.loadBundle(bundle_path)) {
+        LOG_ERROR("ANIM", "Failed to load bundle: " + String(bundle_path));
+        return false;
     }
 
-    
-    LOG_INFO("ANIM", "Bird loaded successfully");
-    LOG_DEBUG("ANIM", "Bird animation details loaded");
+    // 从bundle获取帧数
+    current_frame_count_ = bundle_loader_.getFrameCount();
+    LOG_INFO("ANIM", "Bundle loaded: " + String(current_frame_count_) + " frames from " + String(bundle_path));
+
     return true;
 }
 
@@ -199,36 +194,50 @@ bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
         return false;
     }
 
-    std::string frame_path = getFramePath(frame_index);
+    // 释放前一帧
+    releasePreviousFrame();
 
-    // 尝试手动加载图像
-    if (tryManualImageLoad(frame_path)) {
-        // 强制刷新LVGL显示
-        lv_obj_invalidate(display_obj_);
-        return true;
-    } else {
-        LOG_WARN("ANIM", "Failed to load frame " + String(frame_index));
-        
-        // 手动加载失败，使用后备颜色显示
-        lv_color_t bird_color = lv_color_hex(0x808080); // 默认灰色
-        switch (current_bird_.id % 8) {
-            case 0: bird_color = lv_color_hex(0x808080); break; // 灰色
-            case 1: bird_color = lv_color_hex(0x8B4513); break; // 棕色
-            case 2: bird_color = lv_color_hex(0xB22222); break; // 红色
-            case 3: bird_color = lv_color_hex(0x4682B4); break; // 蓝色
-            case 4: bird_color = lv_color_hex(0x00008B); break; // 深蓝
-            case 5: bird_color = lv_color_hex(0x228B22); break; // 绿色
-            case 6: bird_color = lv_color_hex(0xFFD700); break; // 金色
-            case 7: bird_color = lv_color_hex(0xFF69B4); break; // 粉色
-        }
+    // 从bundle加载帧
+    lv_image_dsc_t* img_dsc = nullptr;
+    uint8_t* img_data = nullptr;
 
-        lv_obj_set_style_bg_color(display_obj_, bird_color, LV_PART_MAIN);
-        lv_obj_set_style_border_width(display_obj_, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(display_obj_, lv_color_hex(0x333333), LV_PART_MAIN);
-        
-        // 注意: 返回true以继续动画循环(使用颜色动画)
-        return true;
+    if (!bundle_loader_.loadFrame(frame_index, &img_dsc, &img_data)) {
+        LOG_ERROR("ANIM", "Failed to load frame " + String(frame_index) + " from bundle");
+        return false;
     }
+
+    if (!img_dsc || !img_data) {
+        LOG_ERROR("ANIM", "Bundle loader returned null pointers");
+        return false;
+    }
+
+    // 保存当前帧引用
+    current_img_dsc_ = img_dsc;
+    current_img_data_ = img_data;
+
+    // 设置图像源
+    lv_image_set_src(display_obj_, img_dsc);
+
+    // 计算缩放比例 - canvas是240x240，图像是120x120，需要2倍缩放
+    // LVGL缩放：256 = 1.0x, 512 = 2.0x
+    uint16_t zoom_factor = 512; // 2.0x缩放
+
+    // 设置缩放中心点为图像中心
+    lv_img_set_pivot(display_obj_, img_dsc->header.w / 2, img_dsc->header.h / 2);
+
+    // 应用缩放
+    lv_img_set_zoom(display_obj_, zoom_factor);
+
+    // 设置图像位置到canvas中心
+    lv_obj_center(display_obj_);
+
+    // 确保对象可见
+    lv_obj_clear_flag(display_obj_, LV_OBJ_FLAG_HIDDEN);
+
+    // 强制刷新LVGL显示
+    lv_obj_invalidate(display_obj_);
+
+    return true;
 }
 
 void BirdAnimation::playNextFrame() {
@@ -565,92 +574,13 @@ bool BirdAnimation::preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** o
         LOG_ERROR("ANIM", "Invalid output parameters for preload");
         return false;
     }
-    
+
     if (frame_index >= current_frame_count_) {
         return false;
     }
 
-    std::string frame_path = getFramePath(frame_index);
-    File file = SD.open(frame_path.c_str());
-    if (!file) {
-        return false;
-    }
-
-    size_t file_size = file.size();
-    if (file_size < 32) {
-        file.close();
-        return false;
-    }
-
-    // 读取头部
-    uint32_t header_cf, flags, stride, reserved_2, data_size;
-    uint16_t width, height;
-
-    if (file.read((uint8_t*)&header_cf, sizeof(header_cf)) != sizeof(header_cf) ||
-        file.read((uint8_t*)&flags, sizeof(flags)) != sizeof(flags) ||
-        file.read((uint8_t*)&width, sizeof(width)) != sizeof(width) ||
-        file.read((uint8_t*)&height, sizeof(height)) != sizeof(height) ||
-        file.read((uint8_t*)&stride, sizeof(stride)) != sizeof(stride) ||
-        file.read((uint8_t*)&reserved_2, sizeof(reserved_2)) != sizeof(reserved_2) ||
-        file.read((uint8_t*)&data_size, sizeof(data_size)) != sizeof(data_size)) {
-        file.close();
-        return false;
-    }
-
-    // 验证格式
-    uint8_t color_format = header_cf & 0xFF;
-    uint8_t magic = (header_cf >> 24) & 0xFF;
-    if (color_format != 0x12 || magic != 0x37) {
-        file.close();
-        return false;
-    }
-
-    // 检查内存
-    size_t free_heap = ESP.getFreeHeap();
-    if (free_heap < data_size + 4096) {
-        file.close();
-        return false;
-    }
-
-    // 分配内存
-    lv_image_dsc_t* img_dsc = static_cast<lv_image_dsc_t*>(malloc(sizeof(lv_image_dsc_t)));
-    uint8_t* img_data = static_cast<uint8_t*>(malloc(data_size));
-    
-    if (!img_dsc || !img_data) {
-        if (img_dsc) free(img_dsc);
-        if (img_data) free(img_data);
-        file.close();
-        return false;
-    }
-
-    // 读取像素数据
-    size_t bytes_read = file.read(img_data, data_size);
-    file.close();
-    
-    // 预加载完成后让出CPU，避免看门狗超时
-    vTaskDelay(1);
-
-    if (bytes_read != data_size) {
-        free(img_dsc);
-        free(img_data);
-        return false;
-    }
-
-    // 设置描述符
-    img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
-    img_dsc->header.cf = color_format;
-    img_dsc->header.flags = 0;
-    img_dsc->header.w = width;
-    img_dsc->header.h = height;
-    img_dsc->header.stride = width * 2;
-    img_dsc->header.reserved_2 = 0;
-    img_dsc->data_size = data_size;
-    img_dsc->data = img_data;
-
-    *out_dsc = img_dsc;
-    *out_data = img_data;
-    
-    return true;
+    // 使用bundle loader加载帧
+    return bundle_loader_.loadFrame(frame_index, out_dsc, out_data);
 }
 
 } // namespace BirdWatching

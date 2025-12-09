@@ -6,73 +6,65 @@
 namespace BirdWatching {
 namespace Utils {
 
+// Bundle文件魔数: "BIRD"
+constexpr uint32_t BUNDLE_MAGIC = 0x42495244;
+constexpr uint8_t RGB565_COLOR_FORMAT = 0x12;
+
 uint8_t detectFrameCount(uint16_t bird_id) {
-    // 优化策略：结合常见帧数快速路径和二分查找
-    uint8_t max_frames = 0;
-    uint8_t lower_bound = 1;  // 记录下界
-    
-    // 首先尝试常见的帧数（从大到小，快速路径）
-    // 80是当前所有动画的标准帧数，优先检查
-    const uint8_t common_counts[] = {150, 128, 64, 48, 32, 24, 16, 8};
-    for (uint8_t test_count : common_counts) {
-        char path[128];
-        snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, test_count);
-        File test_file = SD.open(path);
-        if (test_file) {
-            test_file.close();
-            max_frames = test_count;
-            // 找到了魔数，立即检查下一帧是否存在
-            snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, test_count + 1);
-            File next_file = SD.open(path);
-            if (!next_file) {
-                // 下一帧不存在，魔数就是最大帧数
-                return max_frames;
-            }
-            next_file.close();
-            // 下一帧存在，说明帧数 > test_count，继续向上查找
-            lower_bound = test_count + 2;  // 已经确认了 test_count+1 存在
-            max_frames = test_count + 1;
-            break;
-        }
-        // 没找到，继续尝试更小的常见值
+    // Bundle模式：直接从bundle文件头读取帧数
+    char bundle_path[64];
+    snprintf(bundle_path, sizeof(bundle_path), "/birds/%d/bundle.bin", bird_id);
+
+    File bundle_file = SD.open(bundle_path);
+    if (!bundle_file) {
+        Serial.printf("[WARN] Bundle not found: %s\n", bundle_path);
+        return 0;
     }
-    
-    // 如果找到了一个常见值但还有更多帧，使用二分查找在 [lower_bound, 200] 范围内精确定位
-    if (max_frames > 0 && lower_bound <= 200) {
-        uint8_t min_val = lower_bound;
-        uint8_t max_val = 200;
-        
-        // 二分查找找到确切的最大帧数
-        while (min_val <= max_val) {
-            uint8_t mid = (min_val + max_val) / 2;
-            char path[128];
-            snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, mid);
-            File test_file = SD.open(path);
-            
-            if (test_file) {
-                test_file.close();
-                max_frames = mid;  // 找到更大的帧数
-                min_val = mid + 1; // 继续向上查找
-            } else {
-                max_val = mid - 1; // 向下查找
-            }
-        }
-    } else if (max_frames == 0) {
-        // 没找到任何常见值，说明帧数 < 8，线性查找
-        for (uint8_t i = 1; i < 8; i++) {
-            char path[128];
-            snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, i);
-            File test_file = SD.open(path);
-            if (test_file) {
-                test_file.close();
-                max_frames = i;
-            } else if (max_frames > 0) {
-                break; // 找到缺口，停止查找
-            }
-        }
+
+    // 读取bundle文件头的前20字节（足够获取frame_count）
+    // Bundle Header结构：
+    // - magic (4B)
+    // - version (2B)
+    // - frame_count (2B) <-- 我们需要这个
+    // - frame_width (2B)
+    // - frame_height (2B)
+    // ...
+
+    uint32_t magic = 0;
+    uint16_t version = 0;
+    uint16_t frame_count = 0;
+    uint16_t frame_width = 0;
+    uint16_t frame_height = 0;
+    uint32_t frame_size = 0;
+
+    // 读取关键字段
+    if (bundle_file.read((uint8_t*)&magic, 4) != 4 ||
+        bundle_file.read((uint8_t*)&version, 2) != 2 ||
+        bundle_file.read((uint8_t*)&frame_count, 2) != 2 ||
+        bundle_file.read((uint8_t*)&frame_width, 2) != 2 ||
+        bundle_file.read((uint8_t*)&frame_height, 2) != 2 ||
+        bundle_file.read((uint8_t*)&frame_size, 4) != 4) {
+        Serial.printf("[ERROR] Failed to read bundle header: %s\n", bundle_path);
+        bundle_file.close();
+        return 0;
     }
-    
-    return max_frames;
+
+    bundle_file.close();
+
+    // 验证魔数
+    if (magic != BUNDLE_MAGIC) {
+        Serial.printf("[ERROR] Invalid bundle magic: 0x%08X (expected 0x%08X)\n", magic, BUNDLE_MAGIC);
+        return 0;
+    }
+
+    // 验证帧数合理性
+    if (frame_count == 0 || frame_count > 200) {
+        Serial.printf("[WARN] Suspicious frame count: %d\n", frame_count);
+        return 0;
+    }
+
+    Serial.printf("[INFO] Bundle detected: %d frames, %dx%d\n", frame_count, frame_width, frame_height);
+    return frame_count;
 }
 
 } // namespace Utils
