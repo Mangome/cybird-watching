@@ -6,6 +6,7 @@
 #include "SD.h"
 #include "system/logging/log_manager.h"
 #include "config/version.h"
+#include "config/ui_texts.h"
 
 // C语言全局变量
 extern "C" {
@@ -215,16 +216,20 @@ void lv_init_gui(void)
 		// 居中显示
 		lv_obj_center(logo_img);
 		
-		// 创建版本号标签
+		// 创建版本号和版权信息标签
 		logo_version_label = lv_label_create(logo_scr);
-		lv_label_set_text(logo_version_label, FIRMWARE_VERSION_FULL);
+		String version_text = String(FIRMWARE_VERSION_FULL) + "\n" + String(UITexts::SplashView::COPYRIGHT);
+		lv_label_set_text(logo_version_label, version_text.c_str());
 		
-		// 设置版本号样式
-		lv_obj_set_style_text_color(logo_version_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+		// 设置文本居中对齐
+		lv_obj_set_style_text_align(logo_version_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+		
+		// 设置版本号样式（灰色，不太明显）
+		lv_obj_set_style_text_color(logo_version_label, lv_color_hex(0x808080), LV_PART_MAIN);
 		lv_obj_set_style_text_font(logo_version_label, &lv_font_notosanssc_18, LV_PART_MAIN);
 		
-		// 位置：右下角，距离边缘 10 像素
-		lv_obj_align(logo_version_label, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+		// 位置：底部居中，距离边缘 10 像素
+		lv_obj_align(logo_version_label, LV_ALIGN_BOTTOM_MID, 0, -10);
 		
 		// 确保版本号可见
 		lv_obj_clear_flag(logo_version_label, LV_OBJ_FLAG_HIDDEN);
