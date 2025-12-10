@@ -57,7 +57,7 @@ if errorlevel 1 (
 :: Run conversion
 echo.
 echo Converting images...
-uv run converter convert "!SOURCE_DIR!" "!TARGET_DIR!"
+uv run converter convert "!SOURCE_DIR!" "!TARGET_DIR!" --max-width 120 --max-height 120
 
 if errorlevel 1 (
     echo.
