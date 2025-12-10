@@ -39,7 +39,7 @@ class BatchProcessor:
             找到的图片文件路径列表
         """
         if extensions is None:
-            extensions = ['.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG']
+            extensions = ['.png', '.jpg', '.jpeg']
 
         image_files = []
 
@@ -48,9 +48,21 @@ class BatchProcessor:
 
         # 递归扫描目录
         for ext in extensions:
+            # 在Windows上不区分大小写，但为了兼容性也匹配大写
             image_files.extend(source_dir.rglob(f'*{ext}'))
+            image_files.extend(source_dir.rglob(f'*{ext.upper()}'))
 
-        return sorted(image_files)
+        # 去重（使用set会丢失顺序，所以用dict）
+        seen = {}
+        unique_files = []
+        for path in image_files:
+            # 使用resolve()获取规范化的绝对路径作为去重key
+            key = path.resolve()
+            if key not in seen:
+                seen[key] = True
+                unique_files.append(path)
+
+        return sorted(unique_files)
 
     @staticmethod
     def get_output_path(input_path: Path, output_dir: Path,
