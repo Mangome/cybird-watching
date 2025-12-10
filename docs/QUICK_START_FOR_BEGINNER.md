@@ -2,6 +2,8 @@
 
 本文档适合了解基本的PC操作，知道怎么安装软件的非开发者用户。
 
+项目 github地址：https://github.com/Mangome/cybird-watching
+
 ## 1. 环境准备
 
 ### 1.1 硬件
@@ -14,9 +16,11 @@
 
 ### 1.2 开发环境
 
-下载源码：[cybird-watching-main.zip](https://pan.quark.cn/s/db0359f6f5f9)，或者直接从[github](https://github.com/Mangome/cybird-watching)上下载，解压到不包含中文的路径下。
+下载源码：[cybird-watching-main.zip](https://pan.quark.cn/s/db0359f6f5f9)，或者直接从[github](https://github.com/Mangome/cybird-watching/archive/refs/heads/main.zip)上下载，解压到不包含中文的路径下。
 
 安装Python，下载地址：[清华大学源 Python 3.14.2](https://mirrors.tuna.tsinghua.edu.cn/python/3.14.2/python-3.14.2.exe)
+![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210161634.png)
+注意勾选`Add python.exe to PATH`的复选框。
 
 Python 安装完成后运行源码`scripts/`目录下的`init.bat`进行初始化。
 
@@ -38,13 +42,14 @@ SD卡根目录/
     └── logo.bin       # 启动 Logo
 ```
 
-## 2 编译和烧录固件
+## 2. 编译和烧录固件
 
 **确定自己的硬件 COM 端口**。将 USB 连接电脑和 ESP32 硬件，打开设备管理器（开始菜单搜索`设备管理器`）。
 
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512092334859.png)
 
-如截图所示，当前演示设备的端口是`COM3`。修改源码中的 `platformio.ini`，将`upload_port`端口改为你的电脑的设备端口。
+如截图所示，当前演示设备的端口是`COM3`。用文本编辑器修改源码中的 `platformio.ini`，将`upload_port`端口改为你的电脑的设备端口。
+![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210161919.png)
 
 进入 `scripts/` 目录，双击运行 `upload_and_monitor.bat`，等待烧录完成。
 
@@ -59,6 +64,10 @@ SD卡根目录/
 
 烧录过程中硬件会息屏，烧录完成后显示 `Cybird Watching` Logo 就烧录成功了。
 
-![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210142252.png)
+![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210160955.png)
+## 3. 操控说明
+- **切换小鸟**：在小鸟展示界面，保持左倾/右倾可以触发切换小鸟（CD 为 10 秒），触发成功 LED 闪烁蓝灯
+- **统计界面**：保持前倾进入统计界面，触发成功 LED 闪烁绿光。在统计界面内，保持左倾/右倾进行翻页
+- **退出统计**：在统计界面保持后倾可退出到小鸟界面
 
 Happy bird watching！
