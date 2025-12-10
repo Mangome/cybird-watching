@@ -50,7 +50,10 @@ SD卡根目录/
 初次执行在国内网络可能需要比较长时间的下载：
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512100113486.png)
 
-下载完成后会进入到烧录过程：
+如果下载较慢，可以关闭窗口，手动下载分享目录下的 .platformio.zip 文件。注意目前只兼容了Windows平台。解压到 `C:\Users\用户名\.platformio\` 目录下，然后重新运行 `upload_and_monitor.bat`。
+
+
+之后后会进入到烧录过程：
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512092336035.png)
 
 烧录过程中硬件会息屏，烧录完成后显示 `Cybird Watching` Logo 就烧录成功了。
