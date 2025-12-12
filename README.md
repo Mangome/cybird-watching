@@ -2,6 +2,8 @@
 
 一个基于 ESP32 的智能观鸟显示设备，采用双核 FreeRTOS 架构，集成了多种传感器和动画系统。
 
+![11](https://github.com/user-attachments/assets/90f8604d-6d39-4414-a31e-e3bdec304df7)
+
 当前项目的所有基础来自于[稚晖君的HoloCubic项目](https://github.com/peng-zhihui/HoloCubic)。
 
 > 淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差（我也是直接购买的硬件）。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
