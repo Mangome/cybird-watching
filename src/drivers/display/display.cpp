@@ -1,12 +1,9 @@
 #include "display.h"
-#include <TFT_eSPI.h>
+#include "lgfx_config.h"
 #include "log_manager.h"
 
-/*
-TFT pins should be set in path/to/Arduino/libraries/TFT_eSPI/User_Setups/Setup24_ST7789.h
-*/
-TFT_eSPI tft = TFT_eSPI();
-
+// LovyanGFX 实例（替代 TFT_eSPI）
+static LGFX lcd;
 
 
 void my_print(lv_log_level_t level, const char* file, uint32_t line, const char* fun, const char* dsc)
@@ -44,10 +41,10 @@ void my_disp_flush(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 	uint32_t w = (area->x2 - area->x1 + 1);
 	uint32_t h = (area->y2 - area->y1 + 1);
 
-	tft.startWrite();
-	tft.setAddrWindow(area->x1, area->y1, w, h);
-	tft.pushColors((uint16_t*)px_map, w * h, true);
-	tft.endWrite();
+	lcd.startWrite();
+	lcd.setAddrWindow(area->x1, area->y1, w, h);
+	lcd.writePixels((lgfx::rgb565_t*)px_map, w * h);
+	lcd.endWrite();
 
 	lv_display_flush_ready(disp);
 }
@@ -55,42 +52,32 @@ void my_disp_flush(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 
 void Display::init()
 {
-	// Temporarily disable PWM backlight to avoid GPIO error
-	// ledcSetup(LCD_BL_PWM_CHANNEL, 5000, 8);
-	// ledcAttachPin(LCD_BL_PIN, LCD_BL_PWM_CHANNEL);
+	// 背光控制
 	pinMode(LCD_BL_PIN, OUTPUT);
 	digitalWrite(LCD_BL_PIN, HIGH);
 
 	lv_init();
 
-	// lv_log_register_print_cb() is deprecated in LVGL 9.x
+	LOG_INFO("LCD", "Initializing LovyanGFX display...");
 
-	LOG_INFO("TFT", "Testing minimal TFT init...");
-
-	// Try a minimal TFT initialization
-	pinMode(2, OUTPUT); // DC pin
-	digitalWrite(2, HIGH);
-
-	LOG_INFO("TFT", "DC pin set, attempting tft.begin()...");
-	tft.begin(); /* TFT init */
-	LOG_INFO("TFT", "tft.begin() completed");
-
-	tft.setRotation(4); /* mirror */
+	// LovyanGFX 初始化
+	lcd.init();
+	lcd.setRotation(4); // 镜像（与原配置一致）
+	lcd.setBrightness(255);
+	lcd.fillScreen(TFT_BLACK); // 填充黑色
 	
-	// 立即填充黑色，避免显示未初始化的内容
-	tft.fillScreen(TFT_BLACK);
-	
-	LOG_INFO("TFT", "TFT initialization successful");
+	LOG_INFO("LCD", "LovyanGFX initialization successful");
+	LOG_INFO("LCD", String("Display: ") + lcd.width() + "x" + lcd.height());
 
-	/* Create the display */
+	/* 创建 LVGL 显示 */
 	lv_display_t* disp = lv_display_create(240, 240);
 	lv_display_set_flush_cb(disp, my_disp_flush);
 
-	/* Set display buffers - the old draw_buf approach is deprecated */
+	/* 设置显示缓冲区 */
 	static lv_color_t buf1[240 * 10];
 	lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
 	
-	// 创建并加载一个默认的黑色屏幕，避免LVGL渲染未定义内容
+	// 创建默认黑色屏幕
 	lv_obj_t* black_scr = lv_obj_create(NULL);
 	lv_obj_set_style_bg_color(black_scr, lv_color_black(), 0);
 	lv_obj_set_style_bg_opa(black_scr, LV_OPA_COVER, 0);
