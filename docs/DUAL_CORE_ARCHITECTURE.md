@@ -2,7 +2,9 @@
 
 ## 概述
 
-CybirdWatching v3.0 采用双核架构，充分发挥 ESP32 双核处理器的性能优势，将 UI 渲染和系统逻辑分离到不同的核心上运行。
+CybirdWatching v1.1.0 采用双核架构，充分发挥 ESP32/ESP32-S3 双核处理器的性能优势，将 UI 渲染和系统逻辑分离到不同的核心上运行。
+
+> **平台支持**: 本架构同时适用于 ESP32 (PICO32) 和 ESP32-S3 (DevKitC-1) 平台。
 
 ## 架构设计
 
@@ -202,9 +204,28 @@ taskMgr->sendToUITask(msg);
 
 ---
 
+## 平台差异
+
+### ESP32 vs ESP32-S3
+
+| 特性 | ESP32 (PICO32) | ESP32-S3 (DevKitC-1) |
+|------|---------------|---------------------|
+| SPI 总线 | VSPI/HSPI | FSPI/SPI2_HOST |
+| SD 卡模式 | SPI | SDMMC (优先) / SPI |
+| IMU 传感器 | MPU6050 | MPU6050 / QMI8658 |
+| RGB LED | GPIO27 | GPIO48 |
+
+双核任务调度在两个平台上保持一致，差异主要体现在硬件驱动层。
+
+---
+
 ## 版本历史
 
-- **v3.0** - 2025-12-02
+- **v1.1.0** - 2025-12-16
+  - 新增 ESP32-S3 平台支持
+  - 硬件抽象层适配双平台
+
+- **v1.0.0** - 2025-12-02
   - 引入双核FreeRTOS架构
   - UI和系统逻辑完全分离
   - 新增`task`监控命令
@@ -221,5 +242,5 @@ taskMgr->sendToUITask(msg);
 
 ---
 
-**Last Updated**: 2025-12-02  
+**Last Updated**: 2025-12-16  
 **Author**: CybirdWatching Development Team

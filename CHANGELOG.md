@@ -1,5 +1,40 @@
 # CybirdWatching 更新日志
 
+## [1.1.0] - 2025-12-16
+
+### ✨ ESP32-S3 平台支持
+
+#### 新增特性
+- **ESP32-S3 DevKitC-1 支持**
+  - 新增 `esp32-s3-devkitc-1` 编译环境
+  - 完整的 ESP32-S3 专用引脚映射配置
+  - 编译时自动平台识别 (`PLATFORM_ESP32_S3` 宏)
+
+- **SD 卡 SDMMC 高速模式** (仅 ESP32-S3)
+  - 支持 SDMMC 1-bit/4-bit 模式，频率可达 40MHz
+  - 自动降级：SDMMC 失败自动回退到 SPI 模式
+  - 多频率自适应（25MHz → 10MHz → 4MHz → 1MHz）
+
+- **IMU 传感器扩展**
+  - 新增 QMI8658 传感器支持（ESP32-S3 开发板常用）
+  - 保持 MPU6050 兼容性
+
+- **SPI 总线适配**
+  - ESP32-S3 使用 FSPI/SPI2_HOST
+  - ESP32 保持使用 VSPI/HSPI
+
+#### 🔧 优化改进
+- 硬件抽象层 (HAL) 重构，支持多平台
+- 构建脚本支持平台选择
+- 显示驱动 (LovyanGFX) 双平台配置
+
+#### 📚 文档更新
+- README 更新硬件支持说明
+- 新增 ESP32-S3 引脚映射表
+- 更新快速开始指南
+
+---
+
 ## [1.0.0] - 2025-12-09
 
 ### 🎉 首个正式版本发布
@@ -43,11 +78,11 @@
   - 批量处理支持
 
 #### 📦 硬件支持
-- ESP32 (PICO32) 主控
-- TFT LCD 240x240 显示屏
-- MPU6050 六轴传感器
+- ESP32 (PICO32) / ESP32-S3 (DevKitC-1) 主控
+- TFT LCD 240x240 显示屏 (ST7789)
+- MPU6050 / QMI8658 六轴传感器
 - WS2812B RGB LED
-- Micro SD 卡存储
+- Micro SD 卡存储 (SPI / SDMMC)
 
 #### 📚 文档
 - 完整的项目 README

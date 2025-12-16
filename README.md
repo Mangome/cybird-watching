@@ -8,8 +8,8 @@
 
 > 淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差（我也是直接购买的硬件）。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-ESP32%20PICO32-green.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Platform](https://img.shields.io/badge/platform-ESP32%20|%20ESP32--S3-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Arduino-red.svg)
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
 ![Build](https://img.shields.io/badge/build-PlatformIO-orange.svg)
@@ -70,12 +70,43 @@
 
 ## 🛠️ 硬件要求
 
-- **主控**: ESP32 (PICO32)
-- **显示**: TFT LCD (240x240, TFT_eSPI 兼容)
-- **传感器**: MPU6050 六轴传感器 (IMU)
-- **存储**: Micro SD 卡 (建议 FAT32 格式)
+### 支持的主控平台
+
+| 平台 | 开发板 | SD 卡模式 | IMU 传感器 |
+|------|--------|----------|-----------|
+| **ESP32** | PICO32 (HoloCubic) | SPI | MPU6050 |
+| **ESP32-S3** | DevKitC-1 | SDMMC / SPI | MPU6050 / QMI8658 |
+
+### 通用硬件
+- **显示**: TFT LCD (240x240, ST7789)
+- **存储**: Micro SD 卡 (建议 FAT32 格式，≤32GB)
 - **LED**: WS2812B RGB LED
 - **接口**: USB 串口 (默认 115200 波特率)
+
+### ESP32-S3 引脚映射
+
+<details>
+<summary>点击展开引脚对照表</summary>
+
+| 功能 | ESP32 引脚 | ESP32-S3 引脚 |
+|------|-----------|--------------|
+| **TFT SPI** | | |
+| MISO | GPIO19 | GPIO13 |
+| MOSI | GPIO23 | GPIO11 |
+| SCLK | GPIO18 | GPIO12 |
+| DC | GPIO2 | GPIO10 |
+| RST | GPIO4 | GPIO9 |
+| BL | GPIO5 | GPIO8 |
+| **SD 卡 (SPI)** | | |
+| SCK | GPIO14 | GPIO14 |
+| MISO | GPIO26 | GPIO15 |
+| MOSI | GPIO13 | GPIO16 |
+| CS | GPIO15 | GPIO17 |
+| **SD 卡 (SDMMC)** | 不支持 | CLK=36, CMD=35, D0=37 |
+| **I2C (IMU)** | SDA=32, SCL=33 | SDA=1, SCL=2 |
+| **RGB LED** | GPIO27 | GPIO48 |
+
+</details>
 
 ## 📦 软件依赖
 
@@ -137,22 +168,29 @@ upload_port = COM5      # 修改为你的端口
 
 
 ### 5. 编译和上传
-```bash
-# 编译项目
-platformio run
 
-# 上传到设备
-platformio run --target upload
+#### 选择目标平台
+
+项目支持两种硬件平台，编译时需要指定环境：
+
+```bash
+# ESP32 PICO32 (HoloCubic 默认)
+platformio run -e pico32
+platformio run -e pico32 --target upload
+
+# ESP32-S3 DevKitC-1
+platformio run -e esp32-s3-devkitc-1
+platformio run -e esp32-s3-devkitc-1 --target upload
 
 # 监控串口输出
 platformio device monitor
 ```
 
-也可以使用 `scripts/` 下的脚本（Windows）：
+也可以使用 `scripts/` 下的脚本（Windows），脚本会提示选择目标平台：
 ```bash
 cd scripts
 
-# 编译项目
+# 编译项目（会提示选择平台）
 .\pio_run.bat
 
 # 上传固件并监控

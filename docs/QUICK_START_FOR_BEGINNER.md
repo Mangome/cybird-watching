@@ -8,10 +8,7 @@
 
 ### 1.1 硬件
 
-淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差（我也是直接购买的硬件）。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
-
-
-最便捷的方式就是征求商家帮你把本项目的固件刷新到硬件上后再发货，就不需要自己动手了。
+> **推荐**: 如果购买 HoloCubic 整机，选择预装了 [HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO) 固件的版本。最便捷的方式是请商家帮你刷入本项目固件后再发货。
 
 
 ### 1.2 开发环境
@@ -51,7 +48,13 @@ SD卡根目录/
 如截图所示，当前演示设备的端口是`COM3`。用文本编辑器修改源码中的 `platformio.ini`，将`upload_port`端口改为你的电脑的设备端口。
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210161919.png)
 
-进入 `scripts/` 目录，双击运行 `upload_and_monitor.bat`，等待烧录完成。
+进入 `scripts/` 目录，双击运行 `upload_and_monitor.bat`。
+
+**选择目标平台**：脚本会提示你选择硬件平台：
+- 输入 `1` 选择 ESP32 PICO32 (HoloCubic)
+- 输入 `2` 选择 ESP32-S3 DevKitC-1
+
+等待烧录完成。
 
 初次执行在国内网络可能需要比较长时间的下载：
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512100113486.png)
