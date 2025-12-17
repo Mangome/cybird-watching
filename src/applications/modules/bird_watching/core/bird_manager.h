@@ -1,33 +1,36 @@
 #ifndef BIRD_MANAGER_H
 #define BIRD_MANAGER_H
 
+#include <string>
+#include <vector>
+
+#include "../ui/stats_view.h"
 #include "bird_animation.h"
 #include "bird_selector.h"
 #include "bird_stats.h"
 #include "bird_types.h"
-#include "../ui/stats_view.h"
 #include "drivers/sensors/imu/imu.h"
-#include <string>
-#include <vector>
 
-namespace BirdWatching {
+namespace BirdWatching
+{
 
 // 触发类型枚举
 enum TriggerType {
-    TRIGGER_AUTO = 0,       // 自动触发
-    TRIGGER_MANUAL,         // 手动触发
-    TRIGGER_GESTURE         // 手势触发
+    TRIGGER_AUTO = 0,  // 自动触发
+    TRIGGER_MANUAL,    // 手动触发
+    TRIGGER_GESTURE    // 手势触发
 };
 
 // 触发请求结构(用于任务间通信)
 struct BirdTriggerRequest {
     bool pending;
     TriggerType type;
-    uint16_t bird_id;  // 0表示随机
-    bool record_stats; // 是否记录统计
+    uint16_t bird_id;   // 0表示随机
+    bool record_stats;  // 是否记录统计
 };
 
-class BirdManager {
+class BirdManager
+{
 public:
     BirdManager();
     ~BirdManager();
@@ -43,10 +46,10 @@ public:
 
     // 手动触发小鸟出现(设置触发请求)
     bool triggerBird(TriggerType trigger_type = TRIGGER_MANUAL);
-    
+
     // 触发指定小鸟ID
     bool triggerBirdById(uint16_t bird_id, TriggerType trigger_type = TRIGGER_MANUAL);
-    
+
     // 播放指定小鸟（不记录统计）
     bool playBirdWithoutRecording(uint16_t bird_id);
 
@@ -57,16 +60,28 @@ public:
     void showStatistics();
 
     // 获取系统状态
-    bool isInitialized() const { return initialized_; }
-    bool isPlaying() const { return animation_ ? animation_->isPlaying() : false; }
+    bool isInitialized() const
+    {
+        return initialized_;
+    }
+    bool isPlaying() const
+    {
+        return animation_ ? animation_->isPlaying() : false;
+    }
 
     // 配置管理
-    BirdConfig& getConfig() { return config_; }
+    BirdConfig& getConfig()
+    {
+        return config_;
+    }
     void setConfig(const BirdConfig& config);
     void saveConfig();
 
     // 获取统计信息
-    const BirdStatistics& getStatistics() const { return *statistics_; }
+    const BirdStatistics& getStatistics() const
+    {
+        return *statistics_;
+    }
 
     // 获取小鸟列表
     const std::vector<BirdInfo>& getAllBirds() const;
@@ -76,32 +91,32 @@ public:
 
     // 隐藏小鸟信息
     void hideBirdInfo();
-    
+
     // 检查并隐藏小鸟信息（如果超时）
     void checkAndHideBirdInfo();
-    
+
     // 显示/隐藏统计界面
     void showStatsView();
     void hideStatsView();
     bool isStatsViewVisible() const;
-    
+
     // 统计界面页面切换
     void statsViewPreviousPage();
     void statsViewNextPage();
 
 private:
-    bool initialized_;                           // 初始化状态
-    bool first_bird_loaded_;                     // 首次小鸟是否已加载
-    BirdConfig config_;                          // 全局配置
-    BirdAnimation* animation_;                   // 动画播放器
-    BirdSelector* selector_;                     // 小鸟选择器
-    BirdStatistics* statistics_;                 // 统计系统
-    StatsView* stats_view_;                      // 统计界面
-    lv_obj_t* display_obj_;                      // 显示对象（用于访问GUI）
+    bool initialized_;            // 初始化状态
+    bool first_bird_loaded_;      // 首次小鸟是否已加载
+    BirdConfig config_;           // 全局配置
+    BirdAnimation* animation_;    // 动画播放器
+    BirdSelector* selector_;      // 小鸟选择器
+    BirdStatistics* statistics_;  // 统计系统
+    StatsView* stats_view_;       // 统计界面
+    lv_obj_t* display_obj_;       // 显示对象（用于访问GUI）
 
-    uint32_t last_auto_trigger_time_;            // 上次自动触发时间
-    uint32_t last_stats_save_time_;              // 上次统计数据保存时间
-    uint32_t system_start_time_;                 // 系统启动时间
+    uint32_t last_auto_trigger_time_;  // 上次自动触发时间
+    uint32_t last_stats_save_time_;    // 上次统计数据保存时间
+    uint32_t system_start_time_;       // 系统启动时间
 
     // 触发请求(用于跨任务通信)
     BirdTriggerRequest trigger_request_;
@@ -112,7 +127,7 @@ private:
 
     // 初始化各个子系统
     bool initializeSubsystems(lv_obj_t* display_obj);
-    
+
     // 加载首次启动的小鸟
     void loadInitialBird();
 
@@ -121,7 +136,7 @@ private:
 
     // 播放随机小鸟
     bool playRandomBird();
-    
+
     // 播放指定小鸟（内部使用，可选择是否记录统计）
     bool playBird(uint16_t bird_id, bool record_stats = true);
 
@@ -141,6 +156,6 @@ private:
     void handleGesture(GestureType gesture);
 };
 
-} // namespace BirdWatching
+}  // namespace BirdWatching
 
-#endif // BIRD_MANAGER_H
+#endif  // BIRD_MANAGER_H

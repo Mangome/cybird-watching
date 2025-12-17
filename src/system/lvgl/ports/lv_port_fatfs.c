@@ -3,26 +3,26 @@
  * For ESP32
  */
 
- /*********************
-  *      INCLUDES
-  *********************/
+/*********************
+ *      INCLUDES
+ *********************/
 #include "lv_port_fatfs.h"
+
 #include <string.h>
 
-
-  /*********************
-   *      DEFINES
-   *********************/
+/*********************
+ *      DEFINES
+ *********************/
 #define DRIVE_LETTER 'S'
-   /**********************
-	*      TYPEDEFS
-	**********************/
+/**********************
+ *      TYPEDEFS
+ **********************/
 
-	/* Create a type to store the required data about your file.*/
-typedef  FIL file_t;
+/* Create a type to store the required data about your file.*/
+typedef FIL file_t;
 
 /*Similarly to `file_t` create a type for directory reading too */
-typedef  FF_DIR dir_t;
+typedef FF_DIR dir_t;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -48,61 +48,61 @@ static lv_fs_res_t fs_dir_close(lv_fs_drv_t* drv, void* dir_p);
  *  STATIC VARIABLES
  **********************/
 
- /**********************
-  *      MACROS
-  **********************/
+/**********************
+ *      MACROS
+ **********************/
 
-  /**********************
-   *   GLOBAL FUNCTIONS
-  **********************/
+/**********************
+ *   GLOBAL FUNCTIONS
+ **********************/
 
 void lv_fs_if_init(void)
 {
-	/*----------------------------------------------------
-	 * Initialize your storage device and File System
-	 * -------------------------------------------------*/
-	fs_init();
+    /*----------------------------------------------------
+     * Initialize your storage device and File System
+     * -------------------------------------------------*/
+    fs_init();
 
-	/*---------------------------------------------------
-	 * Register the file system interface in LVGL 9.x
-	 *--------------------------------------------------*/
+    /*---------------------------------------------------
+     * Register the file system interface in LVGL 9.x
+     *--------------------------------------------------*/
 
-	 /* Add a simple drive to open images - LVGL 9.x API */
-	lv_fs_drv_t* fs_drv = &(lv_fs_drv_t){0};  /*A driver descriptor*/
+    /* Add a simple drive to open images - LVGL 9.x API */
+    lv_fs_drv_t* fs_drv = &(lv_fs_drv_t){0}; /*A driver descriptor*/
 
-	/*Set up fields...*/
-	fs_drv->letter = DRIVE_LETTER;
-	fs_drv->open_cb = (void*(*)(lv_fs_drv_t*, const char*, lv_fs_mode_t))fs_open;
-	fs_drv->close_cb = fs_close;
-	fs_drv->read_cb = fs_read;
-	fs_drv->write_cb = fs_write;
-	fs_drv->seek_cb = fs_seek;
-	fs_drv->tell_cb = fs_tell;
-	// Note: LVGL 9.x removed some callbacks, using only essential ones
+    /*Set up fields...*/
+    fs_drv->letter = DRIVE_LETTER;
+    fs_drv->open_cb = (void* (*)(lv_fs_drv_t*, const char*, lv_fs_mode_t))fs_open;
+    fs_drv->close_cb = fs_close;
+    fs_drv->read_cb = fs_read;
+    fs_drv->write_cb = fs_write;
+    fs_drv->seek_cb = fs_seek;
+    fs_drv->tell_cb = fs_tell;
+    // Note: LVGL 9.x removed some callbacks, using only essential ones
 
-	fs_drv->dir_close_cb = fs_dir_close;
-	fs_drv->dir_open_cb = (void*(*)(lv_fs_drv_t*, const char*))fs_dir_open;
-	fs_drv->dir_read_cb = fs_dir_read;
+    fs_drv->dir_close_cb = fs_dir_close;
+    fs_drv->dir_open_cb = (void* (*)(lv_fs_drv_t*, const char*))fs_dir_open;
+    fs_drv->dir_read_cb = fs_dir_read;
 
-	lv_fs_drv_register(fs_drv);
+    lv_fs_drv_register(fs_drv);
 }
 
 /**********************
  *   STATIC FUNCTIONS
  **********************/
 
- /* Initialize your Storage device and File system. */
+/* Initialize your Storage device and File system. */
 static void fs_init(void)
 {
-	///* Initialisation de la carte SD */
-	//Serial.print(F("Init SD card... "));
+    ///* Initialisation de la carte SD */
+    // Serial.print(F("Init SD card... "));
 
-	//SPIClass* sd_spi = new SPIClass(HSPI); // another SPI
-	//if (!SD.begin(15, *sd_spi)) // SD-Card SS pin is 15
-	//{
-	//	Serial.println("Card Mount Failed");
-	//	return;
-	//}
+    // SPIClass* sd_spi = new SPIClass(HSPI); // another SPI
+    // if (!SD.begin(15, *sd_spi)) // SD-Card SS pin is 15
+    //{
+    //	Serial.println("Card Mount Failed");
+    //	return;
+    // }
 }
 
 /**
@@ -115,25 +115,24 @@ static void fs_init(void)
  */
 static lv_fs_res_t fs_open(lv_fs_drv_t* drv, void* file_p, const char* path, lv_fs_mode_t mode)
 {
-	uint8_t flags = 0;
+    uint8_t flags = 0;
 
-	if (mode == LV_FS_MODE_WR) flags = FA_WRITE | FA_OPEN_ALWAYS;
-	else if (mode == LV_FS_MODE_RD) flags = FA_READ;
-	else if (mode == (LV_FS_MODE_WR | LV_FS_MODE_RD)) flags = FA_READ | FA_WRITE | FA_OPEN_ALWAYS;
+    if(mode == LV_FS_MODE_WR)
+        flags = FA_WRITE | FA_OPEN_ALWAYS;
+    else if(mode == LV_FS_MODE_RD)
+        flags = FA_READ;
+    else if(mode == (LV_FS_MODE_WR | LV_FS_MODE_RD))
+        flags = FA_READ | FA_WRITE | FA_OPEN_ALWAYS;
 
-	FRESULT res = f_open((file_t*)file_p, path, flags);
+    FRESULT res = f_open((file_t*)file_p, path, flags);
 
-	if (res == FR_OK)
-	{
-		f_lseek((file_t*)file_p, 0);
-		return LV_FS_RES_OK;
-	}
-	else
-	{
-		return LV_FS_RES_UNKNOWN;
-	}
+    if(res == FR_OK) {
+        f_lseek((file_t*)file_p, 0);
+        return LV_FS_RES_OK;
+    } else {
+        return LV_FS_RES_UNKNOWN;
+    }
 }
-
 
 /**
  * Close an opened file
@@ -144,8 +143,8 @@ static lv_fs_res_t fs_open(lv_fs_drv_t* drv, void* file_p, const char* path, lv_
  */
 static lv_fs_res_t fs_close(lv_fs_drv_t* drv, void* file_p)
 {
-	f_close((file_t*)file_p);
-	return LV_FS_RES_OK;
+    f_close((file_t*)file_p);
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -160,9 +159,11 @@ static lv_fs_res_t fs_close(lv_fs_drv_t* drv, void* file_p)
  */
 static lv_fs_res_t fs_read(lv_fs_drv_t* drv, void* file_p, void* buf, uint32_t btr, uint32_t* br)
 {
-	FRESULT res = f_read((file_t*)file_p, buf, btr, (UINT*)br);
-	if (res == FR_OK) return LV_FS_RES_OK;
-	else return LV_FS_RES_UNKNOWN;
+    FRESULT res = f_read((file_t*)file_p, buf, btr, (UINT*)br);
+    if(res == FR_OK)
+        return LV_FS_RES_OK;
+    else
+        return LV_FS_RES_UNKNOWN;
 }
 
 /**
@@ -176,9 +177,11 @@ static lv_fs_res_t fs_read(lv_fs_drv_t* drv, void* file_p, void* buf, uint32_t b
  */
 static lv_fs_res_t fs_write(lv_fs_drv_t* drv, void* file_p, const void* buf, uint32_t btw, uint32_t* bw)
 {
-	FRESULT res = f_write((file_t*)file_p, buf, btw, (UINT*)bw);
-	if (res == FR_OK) return LV_FS_RES_OK;
-	else return LV_FS_RES_UNKNOWN;
+    FRESULT res = f_write((file_t*)file_p, buf, btw, (UINT*)bw);
+    if(res == FR_OK)
+        return LV_FS_RES_OK;
+    else
+        return LV_FS_RES_UNKNOWN;
 }
 
 /**
@@ -191,8 +194,8 @@ static lv_fs_res_t fs_write(lv_fs_drv_t* drv, void* file_p, const void* buf, uin
  */
 static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos, lv_fs_whence_t whence)
 {
-	f_lseek((file_t*)file_p, pos);
-	return LV_FS_RES_OK;
+    f_lseek((file_t*)file_p, pos);
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -204,8 +207,8 @@ static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos, lv_fs_w
  */
 static lv_fs_res_t fs_size(lv_fs_drv_t* drv, void* file_p, uint32_t* size_p)
 {
-	(*size_p) = f_size(((file_t*)file_p));
-	return LV_FS_RES_OK;
+    (*size_p) = f_size(((file_t*)file_p));
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -218,8 +221,8 @@ static lv_fs_res_t fs_size(lv_fs_drv_t* drv, void* file_p, uint32_t* size_p)
  */
 static lv_fs_res_t fs_tell(lv_fs_drv_t* drv, void* file_p, uint32_t* pos_p)
 {
-	*pos_p = f_tell(((file_t*)file_p));
-	return LV_FS_RES_OK;
+    *pos_p = f_tell(((file_t*)file_p));
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -230,11 +233,11 @@ static lv_fs_res_t fs_tell(lv_fs_drv_t* drv, void* file_p, uint32_t* pos_p)
  */
 static lv_fs_res_t fs_remove(lv_fs_drv_t* drv, const char* path)
 {
-	lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+    lv_fs_res_t res = LV_FS_RES_NOT_IMP;
 
-	/* Add your code here*/
+    /* Add your code here*/
 
-	return res;
+    return res;
 }
 
 /**
@@ -246,9 +249,9 @@ static lv_fs_res_t fs_remove(lv_fs_drv_t* drv, const char* path)
  */
 static lv_fs_res_t fs_trunc(lv_fs_drv_t* drv, void* file_p)
 {
-	f_sync((file_t*)file_p);           /*If not syncronized fclose can write the truncated part*/
-	f_truncate((file_t*)file_p);
-	return LV_FS_RES_OK;
+    f_sync((file_t*)file_p); /*If not syncronized fclose can write the truncated part*/
+    f_truncate((file_t*)file_p);
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -260,11 +263,12 @@ static lv_fs_res_t fs_trunc(lv_fs_drv_t* drv, void* file_p)
  */
 static lv_fs_res_t fs_rename(lv_fs_drv_t* drv, const char* oldname, const char* newname)
 {
+    FRESULT res = f_rename(oldname, newname);
 
-	FRESULT res = f_rename(oldname, newname);
-
-	if (res == FR_OK) return LV_FS_RES_OK;
-	else return LV_FS_RES_UNKNOWN;
+    if(res == FR_OK)
+        return LV_FS_RES_OK;
+    else
+        return LV_FS_RES_UNKNOWN;
 }
 
 /**
@@ -277,11 +281,11 @@ static lv_fs_res_t fs_rename(lv_fs_drv_t* drv, const char* oldname, const char* 
  */
 static lv_fs_res_t fs_free(lv_fs_drv_t* drv, uint32_t* total_p, uint32_t* free_p)
 {
-	lv_fs_res_t res = LV_FS_RES_NOT_IMP;
+    lv_fs_res_t res = LV_FS_RES_NOT_IMP;
 
-	/* Add your code here*/
+    /* Add your code here*/
 
-	return res;
+    return res;
 }
 
 /**
@@ -293,9 +297,11 @@ static lv_fs_res_t fs_free(lv_fs_drv_t* drv, uint32_t* total_p, uint32_t* free_p
  */
 static lv_fs_res_t fs_dir_open(lv_fs_drv_t* drv, void* dir_p, const char* path)
 {
-	FRESULT res = f_opendir((dir_t*)dir_p, path);
-	if (res == FR_OK) return LV_FS_RES_OK;
-	else return LV_FS_RES_UNKNOWN;
+    FRESULT res = f_opendir((dir_t*)dir_p, path);
+    if(res == FR_OK)
+        return LV_FS_RES_OK;
+    else
+        return LV_FS_RES_UNKNOWN;
 }
 
 /**
@@ -308,25 +314,23 @@ static lv_fs_res_t fs_dir_open(lv_fs_drv_t* drv, void* dir_p, const char* path)
  */
 static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn, uint32_t len)
 {
-	FRESULT res;
-	FILINFO fno;
-	fn[0] = '\0';
+    FRESULT res;
+    FILINFO fno;
+    fn[0] = '\0';
 
-	do
-	{
-		res = f_readdir((dir_t*)dir_p, &fno);
-		if (res != FR_OK) return LV_FS_RES_UNKNOWN;
+    do {
+        res = f_readdir((dir_t*)dir_p, &fno);
+        if(res != FR_OK) return LV_FS_RES_UNKNOWN;
 
-		if (fno.fattrib & AM_DIR)
-		{
-			fn[0] = '/';
-			strcpy(&fn[1], fno.fname);
-		}
-		else strcpy(fn, fno.fname);
+        if(fno.fattrib & AM_DIR) {
+            fn[0] = '/';
+            strcpy(&fn[1], fno.fname);
+        } else
+            strcpy(fn, fno.fname);
 
-	} while (strcmp(fn, "/.") == 0 || strcmp(fn, "/..") == 0);
+    } while(strcmp(fn, "/.") == 0 || strcmp(fn, "/..") == 0);
 
-	return LV_FS_RES_OK;
+    return LV_FS_RES_OK;
 }
 
 /**
@@ -337,6 +341,6 @@ static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn, uint32_t
  */
 static lv_fs_res_t fs_dir_close(lv_fs_drv_t* drv, void* dir_p)
 {
-	f_closedir((dir_t*)dir_p);
-	return LV_FS_RES_OK;
+    f_closedir((dir_t*)dir_p);
+    return LV_FS_RES_OK;
 }

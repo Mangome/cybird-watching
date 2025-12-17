@@ -4,11 +4,11 @@
 // Bird Watching模块主头文件
 // 包含所有必要的头文件和公共接口
 
-#include "bird_types.h"
-#include "bird_manager.h"
 #include "bird_animation.h"
+#include "bird_manager.h"
 #include "bird_selector.h"
 #include "bird_stats.h"
+#include "bird_types.h"
 #include "config/version.h"
 
 // 观鸟模块版本信息（使用固件统一版本）
@@ -17,11 +17,12 @@
 #define BIRD_WATCHING_VERSION_PATCH FIRMWARE_VERSION_PATCH
 
 // 公共宏定义
-#define BIRD_WATCHING_MAX_BIRDS 20
+#define BIRD_WATCHING_MAX_BIRDS           20
 #define BIRD_WATCHING_MAX_FRAMES_PER_BIRD 32
-#define BIRD_WATCHING_DEFAULT_FPS 8
+#define BIRD_WATCHING_DEFAULT_FPS         8
 
-namespace BirdWatching {
+namespace BirdWatching
+{
 
 // 便捷函数：初始化整个观鸟系统
 bool initializeBirdWatching(lv_obj_t* display_obj = nullptr);
@@ -57,6 +58,6 @@ int getStatisticsCount();
 // 全局观鸟管理器实例（外部声明）
 extern BirdManager* g_birdManager;
 
-} // namespace BirdWatching
+}  // namespace BirdWatching
 
-#endif // BIRD_WATCHING_H
+#endif  // BIRD_WATCHING_H

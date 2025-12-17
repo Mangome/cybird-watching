@@ -1,13 +1,16 @@
 #ifndef BIRD_ANIMATION_H
 #define BIRD_ANIMATION_H
 
-#include "bird_types.h"
-#include "bird_bundle_loader.h"
 #include <string>
 
-namespace BirdWatching {
+#include "bird_bundle_loader.h"
+#include "bird_types.h"
 
-class BirdAnimation {
+namespace BirdWatching
+{
+
+class BirdAnimation
+{
 public:
     BirdAnimation();
     ~BirdAnimation();
@@ -25,36 +28,42 @@ public:
     void stop();
 
     // 检查是否正在播放
-    bool isPlaying() const { return is_playing_; }
+    bool isPlaying() const
+    {
+        return is_playing_;
+    }
 
     // 获取当前小鸟信息
-    const BirdInfo& getCurrentBird() const { return current_bird_; }
+    const BirdInfo& getCurrentBird() const
+    {
+        return current_bird_;
+    }
 
     // 设置显示对象
     void setDisplayObject(lv_obj_t* obj);
 
 private:
-    lv_obj_t* display_obj_;      // LVGL显示对象
-    BirdInfo current_bird_;      // 当前小鸟信息
-    uint16_t current_frame_;     // 当前帧（支持最多65535帧）
-    uint16_t current_frame_count_; // 当前小鸟的实际帧数（支持最多65535帧）
-    lv_timer_t* play_timer_;      // 播放定时器 (LVGL 9.x: lv_task_t → lv_timer_t)
-    bool is_playing_;            // 播放状态
-    bool frame_processing_;      // 当前是否正在处理帧
-    uint32_t last_frame_time_;   // 上一帧处理完成的时间
+    lv_obj_t* display_obj_;         // LVGL显示对象
+    BirdInfo current_bird_;         // 当前小鸟信息
+    uint16_t current_frame_;        // 当前帧（支持最多65535帧）
+    uint16_t current_frame_count_;  // 当前小鸟的实际帧数（支持最多65535帧）
+    lv_timer_t* play_timer_;        // 播放定时器 (LVGL 9.x: lv_task_t → lv_timer_t)
+    bool is_playing_;               // 播放状态
+    bool frame_processing_;         // 当前是否正在处理帧
+    uint32_t last_frame_time_;      // 上一帧处理完成的时间
 
     // 内存管理
-    lv_image_dsc_t* current_img_dsc_; // 当前图像描述符 (LVGL 9.x: lv_img_dsc_t → lv_image_dsc_t)
-    uint8_t* current_img_data_;     // 当前图像数据
+    lv_image_dsc_t* current_img_dsc_;  // 当前图像描述符 (LVGL 9.x: lv_img_dsc_t → lv_image_dsc_t)
+    uint8_t* current_img_data_;        // 当前图像数据
 
     // 双缓冲：预加载下一帧
     lv_image_dsc_t* next_img_dsc_;  // 下一帧图像描述符
     uint8_t* next_img_data_;        // 下一帧图像数据
     bool next_frame_ready_;         // 下一帧是否已准备好
-    
+
     // 预加载统计（用于自适应优化）
-    uint8_t preload_fail_count_;    // 连续预加载失败次数
-    bool preload_enabled_;          // 是否启用预加载
+    uint8_t preload_fail_count_;  // 连续预加载失败次数
+    bool preload_enabled_;        // 是否启用预加载
 
     // 释放前一帧的内存
     void releasePreviousFrame();
@@ -88,11 +97,11 @@ private:
 
     // 预加载图像到缓冲区
     bool preloadFrameToBuffer(uint16_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data);
-    
+
     // 交换当前帧和下一帧缓冲区
     void swapBuffers();
 };
 
-} // namespace BirdWatching
+}  // namespace BirdWatching
 
-#endif // BIRD_ANIMATION_H
+#endif  // BIRD_ANIMATION_H

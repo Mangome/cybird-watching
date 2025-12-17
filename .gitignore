@@ -1,6 +1,8 @@
-.pio
+.pio/*
 CMakeListsPrivate.txt
 cmake-build-*/ 
 */__pycache__/
 
 .vscode/
+
+!.pio/.clang-format

@@ -4,7 +4,8 @@
 #include <FS.h>
 #include <SD.h>
 
-class LogManager {
+class LogManager
+{
 public:
     enum LogLevel {
         LM_LOG_SILENT = 0,
@@ -16,11 +17,7 @@ public:
         LM_LOG_TRACE = 6
     };
 
-    enum LogOutput {
-        OUTPUT_SERIAL = 1,
-        OUTPUT_SD_CARD = 2,
-        OUTPUT_BOTH = 3
-    };
+    enum LogOutput { OUTPUT_SERIAL = 1, OUTPUT_SD_CARD = 2, OUTPUT_BOTH = 3 };
 
 private:
     static LogManager* instance;
@@ -30,7 +27,7 @@ private:
     int currentLogLevel;
     LogOutput logOutputMode;
     unsigned long lastFlushTime;
-    const unsigned long FLUSH_INTERVAL = 5000; // 5秒刷新一次
+    const unsigned long FLUSH_INTERVAL = 5000;  // 5秒刷新一次
 
     // 私有构造函数，单例模式
     LogManager();
@@ -104,7 +101,7 @@ public:
 
 // 全局日志宏定义，方便使用
 #define LOG_DEBUG(tag, msg) LogManager::getInstance()->debug(tag, msg)
-#define LOG_INFO(tag, msg) LogManager::getInstance()->info(tag, msg)
-#define LOG_WARN(tag, msg) LogManager::getInstance()->warn(tag, msg)
+#define LOG_INFO(tag, msg)  LogManager::getInstance()->info(tag, msg)
+#define LOG_WARN(tag, msg)  LogManager::getInstance()->warn(tag, msg)
 #define LOG_ERROR(tag, msg) LogManager::getInstance()->error(tag, msg)
 #define LOG_FATAL(tag, msg) LogManager::getInstance()->fatal(tag, msg)
