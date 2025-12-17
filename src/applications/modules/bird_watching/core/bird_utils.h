@@ -3,8 +3,10 @@
 
 #include <cstdint>
 
-namespace BirdWatching {
-namespace Utils {
+namespace BirdWatching
+{
+namespace Utils
+{
 
 /**
  * @brief 从bundle文件检测小鸟的帧数
@@ -16,7 +18,7 @@ namespace Utils {
  */
 uint16_t detectFrameCount(uint16_t bird_id);
 
-} // namespace Utils
-} // namespace BirdWatching
+}  // namespace Utils
+}  // namespace BirdWatching
 
-#endif // BIRD_UTILS_H
+#endif  // BIRD_UTILS_H

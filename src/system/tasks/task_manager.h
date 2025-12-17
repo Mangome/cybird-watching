@@ -3,25 +3,25 @@
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
+#include <freertos/task.h>
 
 // 任务配置
-#define UI_TASK_STACK_SIZE      8192    // UI任务栈大小(8KB)
-#define SYSTEM_TASK_STACK_SIZE  8192    // 系统任务栈大小(8KB)
-#define UI_TASK_PRIORITY        2       // UI任务优先级
-#define SYSTEM_TASK_PRIORITY    1       // 系统任务优先级
-#define UI_TASK_CORE            0       // UI任务运行在Core 0 (Protocol Core)
-#define SYSTEM_TASK_CORE        1       // 系统任务运行在Core 1 (Application Core)
+#define UI_TASK_STACK_SIZE     8192  // UI任务栈大小(8KB)
+#define SYSTEM_TASK_STACK_SIZE 8192  // 系统任务栈大小(8KB)
+#define UI_TASK_PRIORITY       2     // UI任务优先级
+#define SYSTEM_TASK_PRIORITY   1     // 系统任务优先级
+#define UI_TASK_CORE           0     // UI任务运行在Core 0 (Protocol Core)
+#define SYSTEM_TASK_CORE       1     // 系统任务运行在Core 1 (Application Core)
 
 // 任务间消息类型
 enum TaskMessageType {
-    MSG_TRIGGER_BIRD = 0,      // 触发小鸟动画
-    MSG_UPDATE_CONFIG,         // 更新配置
-    MSG_SHOW_STATS,           // 显示统计信息
-    MSG_GESTURE_EVENT,        // 手势事件
-    MSG_SYSTEM_EVENT          // 系统事件
+    MSG_TRIGGER_BIRD = 0,  // 触发小鸟动画
+    MSG_UPDATE_CONFIG,     // 更新配置
+    MSG_SHOW_STATS,        // 显示统计信息
+    MSG_GESTURE_EVENT,     // 手势事件
+    MSG_SYSTEM_EVENT       // 系统事件
 };
 
 // 任务间消息结构
@@ -34,12 +34,13 @@ struct TaskMessage {
 
 /**
  * @brief 双核任务管理器
- * 
+ *
  * 架构说明:
  * - Core 0: UI渲染任务 (LVGL + Display + Animation)
  * - Core 1: 系统逻辑任务 (Sensors + Network + Commands + Business Logic)
  */
-class TaskManager {
+class TaskManager
+{
 public:
     static TaskManager* getInstance();
 
@@ -60,8 +61,14 @@ public:
     void giveLVGLMutex();
 
     // 获取任务句柄
-    TaskHandle_t getUITaskHandle() const { return ui_task_handle_; }
-    TaskHandle_t getSystemTaskHandle() const { return system_task_handle_; }
+    TaskHandle_t getUITaskHandle() const
+    {
+        return ui_task_handle_;
+    }
+    TaskHandle_t getSystemTaskHandle() const
+    {
+        return system_task_handle_;
+    }
 
     // 任务统计信息
     void printTaskStats();
@@ -92,4 +99,4 @@ private:
     TaskManager& operator=(const TaskManager&) = delete;
 };
 
-#endif // TASK_MANAGER_H
+#endif  // TASK_MANAGER_H

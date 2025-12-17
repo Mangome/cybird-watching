@@ -1,19 +1,20 @@
 #include <Arduino.h>
-#include "esp_task_wdt.h"
-#include "config/version.h"
-#include "drivers/display/display.h"
-#include "drivers/sensors/imu/imu.h"
-#include "drivers/sensors/ambient/ambient.h"
-#include "drivers/communication/network/network.h"
-#include "drivers/storage/sd_card/sd_card.h"
-#include "drivers/io/rgb_led/rgb_led.h"
-#include "system/lvgl/ports/lv_port_indev.h"
-#include "system/lvgl/ports/lv_port_fatfs.h"
-#include "applications/gui/core/lv_cubic_gui.h"
+
 #include "applications/gui/core/gui_guider.h"
-#include "system/logging/log_manager.h"
-#include "system/commands/serial_commands.h"
+#include "applications/gui/core/lv_cubic_gui.h"
 #include "applications/modules/bird_watching/core/bird_watching.h"
+#include "config/version.h"
+#include "drivers/communication/network/network.h"
+#include "drivers/display/display.h"
+#include "drivers/io/rgb_led/rgb_led.h"
+#include "drivers/sensors/ambient/ambient.h"
+#include "drivers/sensors/imu/imu.h"
+#include "drivers/storage/sd_card/sd_card.h"
+#include "esp_task_wdt.h"
+#include "system/commands/serial_commands.h"
+#include "system/logging/log_manager.h"
+#include "system/lvgl/ports/lv_port_fatfs.h"
+#include "system/lvgl/ports/lv_port_indev.h"
 #include "system/tasks/task_manager.h"
 
 /*** Component objects ***/
@@ -34,7 +35,7 @@ void setup()
     esp_task_wdt_init(10, true);
     // 初始化串口通信
     Serial.begin(115200);
-    delay(1000); // 等待串口稳定
+    delay(1000);  // 等待串口稳定
 
     // 立即输出标识，不依赖日志系统
     Serial.println("=== CybirdWatching Starting ===");
@@ -109,8 +110,8 @@ void setup()
     /*** Init Task Manager FIRST (creates LVGL mutex) ***/
     LOG_INFO("MAIN", "Initializing Task Manager...");
     taskManager = TaskManager::getInstance();
-    
-    if (!taskManager->initialize()) {
+
+    if(!taskManager->initialize()) {
         LOG_ERROR("MAIN", "Failed to initialize Task Manager");
         return;
     }
@@ -119,7 +120,7 @@ void setup()
     /*** Start Dual-Core Tasks EARLY ***/
     LOG_INFO("MAIN", "Starting dual-core tasks...");
 
-    if (!taskManager->startTasks()) {
+    if(!taskManager->startTasks()) {
         LOG_ERROR("MAIN", "Failed to start tasks");
         return;
     }
@@ -135,20 +136,20 @@ void setup()
     /*** Init Bird Watching System (扫描小鸟资源期间logo持续显示) ***/
     LOG_INFO("MAIN", "Initializing Bird Watching System (scanning bird resources)...");
     // 传入scenes给BirdManager作为显示对象（统计界面的父对象）
-    if (BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
+    if(BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
         LOG_INFO("MAIN", "Bird Watching System initialized successfully");
     } else {
         LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
     }
     LOG_INFO("MAIN", "Bird resources scan completed");
-    
+
     // 扫描完成后立即关闭logo，显示小鸟界面
     LOG_INFO("MAIN", "Closing logo after resource scan...");
     lv_hide_logo();
     LOG_INFO("MAIN", "Logo closed, bird interface ready");
 
     LOG_INFO("MAIN", "Setup completed, tasks running...");
-    
+
     // 打印任务统计信息
     delay(2000);
     taskManager->printTaskStats();
@@ -160,18 +161,18 @@ void loop()
     // 所有核心功能已经在FreeRTOS任务中运行：
     // - Core 0: UI Task (200Hz - LVGL + Display)
     // - Core 1: System Task (100Hz - Sensors + Commands + Business Logic)
-    
+
     // 可选：定期打印任务统计信息
     static unsigned long lastStatsTime = 0;
     unsigned long currentTime = millis();
-    
-    if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
-        if (taskManager) {
+
+    if(currentTime - lastStatsTime >= 60000) {  // 每60秒打印一次
+        if(taskManager) {
             taskManager->printTaskStats();
         }
         lastStatsTime = currentTime;
     }
-    
+
     // 让出CPU给FreeRTOS调度器
     delay(1000);
 }

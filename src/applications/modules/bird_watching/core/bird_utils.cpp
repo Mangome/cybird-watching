@@ -1,22 +1,28 @@
 #include "bird_utils.h"
-#include "drivers/storage/sd_card/sd_card.h"
-#include <cstdio>
+
 #include <Arduino.h>
 
-namespace BirdWatching {
-namespace Utils {
+#include <cstdio>
+
+#include "drivers/storage/sd_card/sd_card.h"
+
+namespace BirdWatching
+{
+namespace Utils
+{
 
 // Bundle文件魔数: "BIRD"
 constexpr uint32_t BUNDLE_MAGIC = 0x42495244;
 constexpr uint8_t RGB565_COLOR_FORMAT = 0x12;
 
-uint16_t detectFrameCount(uint16_t bird_id) {
+uint16_t detectFrameCount(uint16_t bird_id)
+{
     // Bundle模式：直接从bundle文件头读取帧数
     char bundle_path[64];
     snprintf(bundle_path, sizeof(bundle_path), "/birds/%d/bundle.bin", bird_id);
 
     File bundle_file = SD.open(bundle_path);
-    if (!bundle_file) {
+    if(!bundle_file) {
         Serial.printf("[WARN] Bundle not found: %s\n", bundle_path);
         return 0;
     }
@@ -38,12 +44,9 @@ uint16_t detectFrameCount(uint16_t bird_id) {
     uint32_t frame_size = 0;
 
     // 读取关键字段
-    if (bundle_file.read((uint8_t*)&magic, 4) != 4 ||
-        bundle_file.read((uint8_t*)&version, 2) != 2 ||
-        bundle_file.read((uint8_t*)&frame_count, 2) != 2 ||
-        bundle_file.read((uint8_t*)&frame_width, 2) != 2 ||
-        bundle_file.read((uint8_t*)&frame_height, 2) != 2 ||
-        bundle_file.read((uint8_t*)&frame_size, 4) != 4) {
+    if(bundle_file.read((uint8_t*)&magic, 4) != 4 || bundle_file.read((uint8_t*)&version, 2) != 2 ||
+       bundle_file.read((uint8_t*)&frame_count, 2) != 2 || bundle_file.read((uint8_t*)&frame_width, 2) != 2 ||
+       bundle_file.read((uint8_t*)&frame_height, 2) != 2 || bundle_file.read((uint8_t*)&frame_size, 4) != 4) {
         Serial.printf("[ERROR] Failed to read bundle header: %s\n", bundle_path);
         bundle_file.close();
         return 0;
@@ -52,13 +55,13 @@ uint16_t detectFrameCount(uint16_t bird_id) {
     bundle_file.close();
 
     // 验证魔数
-    if (magic != BUNDLE_MAGIC) {
+    if(magic != BUNDLE_MAGIC) {
         Serial.printf("[ERROR] Invalid bundle magic: 0x%08X (expected 0x%08X)\n", magic, BUNDLE_MAGIC);
         return 0;
     }
 
     // 验证帧数合理性（支持最多65535帧）
-    if (frame_count == 0 || frame_count > 65535) {
+    if(frame_count == 0 || frame_count > 65535) {
         Serial.printf("[WARN] Suspicious frame count: %d\n", frame_count);
         return 0;
     }
@@ -67,5 +70,5 @@ uint16_t detectFrameCount(uint16_t bird_id) {
     return frame_count;
 }
 
-} // namespace Utils
-} // namespace BirdWatching
+}  // namespace Utils
+}  // namespace BirdWatching

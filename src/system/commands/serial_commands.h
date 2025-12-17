@@ -1,10 +1,12 @@
 #pragma once
 
 #include <Arduino.h>
+
 #include "log_manager.h"
 #include "sd_card.h"
 
-class SerialCommands {
+class SerialCommands
+{
 private:
     static const int MAX_COMMANDS = 20;
 
@@ -56,7 +58,7 @@ private:
     void handleBirdCommand(const String& param);
     void handleTaskCommand(const String& param);
     void handleFileCommand(const String& param);
-    
+
     // 文件传输辅助函数
     void handleFileUpload(const String& param);
     void handleFileDownload(const String& param);

@@ -26,4 +26,4 @@ bool bird_animation_load_image_to_canvas(lv_obj_t* canvas, uint16_t bird_id, uin
 }
 #endif
 
-#endif // BIRD_ANIMATION_BRIDGE_H
+#endif  // BIRD_ANIMATION_BRIDGE_H

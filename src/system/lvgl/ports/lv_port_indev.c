@@ -61,7 +61,7 @@ static void encoder_read(lv_indev_t* indev, lv_indev_data_t* data)
 
     encoder_diff = 0;
     /* Reset state after reading */
-    if (encoder_state == LV_INDEV_STATE_PRESSED) {
+    if(encoder_state == LV_INDEV_STATE_PRESSED) {
         encoder_state = LV_INDEV_STATE_RELEASED;
     }
 }
@@ -70,8 +70,7 @@ static void encoder_read(lv_indev_t* indev, lv_indev_data_t* data)
 void lv_port_encoder_handler(int32_t diff, bool pressed)
 {
     encoder_diff += diff;
-    if (pressed) {
+    if(pressed) {
         encoder_state = LV_INDEV_STATE_PRESSED;
     }
 }
-

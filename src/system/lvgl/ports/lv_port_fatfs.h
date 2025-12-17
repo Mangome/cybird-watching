@@ -3,7 +3,7 @@
  *
  */
 
- /*Copy this file as "lv_port_fs.h" and set this value to "1" to enable content*/
+/*Copy this file as "lv_port_fs.h" and set this value to "1" to enable content*/
 #if 1
 
 #ifndef LV_PORT_FS_TEMPL_H
@@ -13,27 +13,26 @@
 extern "C" {
 #endif
 
-	/*********************
-	 *      INCLUDES
-	 *********************/
-#include "lvgl.h"
+/*********************
+ *      INCLUDES
+ *********************/
 #include "ff.h"
-	 /*********************
-	  *      DEFINES
-	  *********************/
-	void lv_fs_if_init(void);
-	/**********************
-	 *      TYPEDEFS
-	 **********************/
+#include "lvgl.h"
+/*********************
+ *      DEFINES
+ *********************/
+void lv_fs_if_init(void);
+/**********************
+ *      TYPEDEFS
+ **********************/
 
-	 /**********************
-	  * GLOBAL PROTOTYPES
-	  **********************/
+/**********************
+ * GLOBAL PROTOTYPES
+ **********************/
 
-	  /**********************
-	   *      MACROS
-	   **********************/
-
+/**********************
+ *      MACROS
+ **********************/
 
 #ifdef __cplusplus
 } /* extern "C" */

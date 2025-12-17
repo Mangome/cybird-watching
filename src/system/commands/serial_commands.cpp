@@ -1,37 +1,43 @@
-#include <Arduino.h>
 #include "serial_commands.h"
+
+#include <Arduino.h>
+
+#include "config/version.h"
 #include "log_manager.h"
 #include "system/tasks/task_manager.h"
-#include "config/version.h"
 
 // 前向声明Bird Watching便捷函数
-namespace BirdWatching {
-    bool triggerBird(uint16_t bird_id = 0);
-    void showBirdStatistics();
-    bool resetBirdStatistics();
-    void listBirds();
-    bool isBirdManagerInitialized();
-    bool isAnimationPlaying();
-    int getStatisticsCount();
-}
+namespace BirdWatching
+{
+bool triggerBird(uint16_t bird_id = 0);
+void showBirdStatistics();
+bool resetBirdStatistics();
+void listBirds();
+bool isBirdManagerInitialized();
+bool isAnimationPlaying();
+int getStatisticsCount();
+}  // namespace BirdWatching
 
 // 静态成员初始化
 SerialCommands* SerialCommands::instance = nullptr;
 
-SerialCommands::SerialCommands() {
+SerialCommands::SerialCommands()
+{
     logManager = nullptr;
     commandEnabled = true;
     commandCount = 0;
 }
 
-SerialCommands* SerialCommands::getInstance() {
-    if (instance == nullptr) {
+SerialCommands* SerialCommands::getInstance()
+{
+    if(instance == nullptr) {
         instance = new SerialCommands();
     }
     return instance;
 }
 
-void SerialCommands::initialize() {
+void SerialCommands::initialize()
+{
     logManager = LogManager::getInstance();
 
     // 注册内置命令
@@ -48,8 +54,9 @@ void SerialCommands::initialize() {
     Serial.println("Serial command system ready. Type 'help' for available commands.");
 }
 
-void SerialCommands::registerCommand(const String& name, const String& description) {
-    if (commandCount < MAX_COMMANDS) {
+void SerialCommands::registerCommand(const String& name, const String& description)
+{
+    if(commandCount < MAX_COMMANDS) {
         commands[commandCount].name = name;
         commands[commandCount].description = description;
         commandCount++;
@@ -57,14 +64,15 @@ void SerialCommands::registerCommand(const String& name, const String& descripti
     }
 }
 
-void SerialCommands::handleInput() {
-    if (!commandEnabled) return;
+void SerialCommands::handleInput()
+{
+    if(!commandEnabled) return;
 
-    if (Serial.available()) {
+    if(Serial.available()) {
         String input = Serial.readStringUntil('\n');
         input.trim();
 
-        if (input.length() == 0) return; // 忽略空行
+        if(input.length() == 0) return;  // 忽略空行
 
         LOG_DEBUG("CMD", "Received command: " + input);
 
@@ -73,7 +81,7 @@ void SerialCommands::handleInput() {
         String param = "";
 
         int spaceIndex = input.indexOf(' ');
-        if (spaceIndex > 0) {
+        if(spaceIndex > 0) {
             command = input.substring(0, spaceIndex);
             param = input.substring(spaceIndex + 1);
         }
@@ -81,40 +89,33 @@ void SerialCommands::handleInput() {
         // 处理命令
         bool commandFound = false;
 
-        if (command.equals("help")) {
+        if(command.equals("help")) {
             showHelp();
             commandFound = true;
-        }
-        else if (command.equals("log")) {
+        } else if(command.equals("log")) {
             handleLogCommand(param);
             commandFound = true;
-        }
-        else if (command.equals("status")) {
+        } else if(command.equals("status")) {
             handleStatusCommand();
             commandFound = true;
-        }
-        else if (command.equals("clear")) {
+        } else if(command.equals("clear")) {
             handleClearCommand();
             commandFound = true;
-        }
-        else if (command.equals("tree")) {
+        } else if(command.equals("tree")) {
             handleTreeCommand(param);
             commandFound = true;
-        }
-        else if (command.equals("bird")) {
+        } else if(command.equals("bird")) {
             handleBirdCommand(param);
             commandFound = true;
-        }
-        else if (command.equals("task")) {
+        } else if(command.equals("task")) {
             handleTaskCommand(param);
             commandFound = true;
-        }
-        else if (command.equals("file")) {
+        } else if(command.equals("file")) {
             handleFileCommand(param);
             commandFound = true;
         }
 
-        if (!commandFound) {
+        if(!commandFound) {
             Serial.println("Unknown command: " + command);
             Serial.println("Type 'help' for available commands");
             LOG_WARN("CMD", "Unknown command: " + command);
@@ -122,44 +123,44 @@ void SerialCommands::handleInput() {
     }
 }
 
-void SerialCommands::handleLogCommand(const String& param) {
-    if (param.isEmpty() || param.equals("")) {
+void SerialCommands::handleLogCommand(const String& param)
+{
+    if(param.isEmpty() || param.equals("")) {
         // 检查是否有参数，如果没有参数，显示最后20行
         Serial.println("<<<RESPONSE_START>>>");
-        if (logManager) {
+        if(logManager) {
             logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Showing last 20 lines of log:");
         }
         String logContent = logManager->getLogContent(20);
-        Serial.print(logContent); // 使用 print 避免额外换行
+        Serial.print(logContent);  // 使用 print 避免额外换行
         Serial.println("<<<RESPONSE_END>>>");
-    }
-    else if (param.equals("clear")) {
+    } else if(param.equals("clear")) {
         Serial.println("<<<RESPONSE_START>>>");
         logManager->clearLogFile();
         Serial.println("Log file cleared");
         Serial.println("<<<RESPONSE_END>>>");
-        if (logManager) {
+        if(logManager) {
             logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Log file cleared by user command");
         }
-    }
-    else if (param.equals("size")) {
+    } else if(param.equals("size")) {
         Serial.println("<<<RESPONSE_START>>>");
         unsigned long size = logManager->getLogFileSize();
         Serial.println("Log file size: " + String(size) + " bytes");
         Serial.println("<<<RESPONSE_END>>>");
-        if (logManager) {
-            logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Log file size queried: " + String(size) + " bytes");
+        if(logManager) {
+            logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD",
+                                    "Log file size queried: " + String(size) + " bytes");
         }
-    }
-    else if (param.startsWith("lines ")) {
+    } else if(param.startsWith("lines ")) {
         int lines = param.substring(6).toInt();
-        if (lines > 0 && lines <= 500) {
+        if(lines > 0 && lines <= 500) {
             Serial.println("<<<RESPONSE_START>>>");
             String logContent = logManager->getLogContent(lines);
-            Serial.print(logContent); // 使用 print 避免额外换行
+            Serial.print(logContent);  // 使用 print 避免额外换行
             Serial.println("<<<RESPONSE_END>>>");
-            if (logManager) {
-                logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Displayed last " + String(lines) + " lines of log");
+            if(logManager) {
+                logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD",
+                                        "Displayed last " + String(lines) + " lines of log");
             }
         } else {
             Serial.println("<<<RESPONSE_START>>>");
@@ -167,32 +168,31 @@ void SerialCommands::handleLogCommand(const String& param) {
             Serial.println("<<<RESPONSE_END>>>");
             LOG_WARN("CMD", "Invalid line count parameter: " + String(lines));
         }
-    }
-    else if (param.equals("cat") || param.equals("export")) {
+    } else if(param.equals("cat") || param.equals("export")) {
         Serial.println("<<<RESPONSE_START>>>");
         Serial.println("=== Full Log File Content ===");
 
         // 直接顺序读取文件，避免重复读取相同内容
-        if (!logManager->isSDCardAvailable()) {
+        if(!logManager->isSDCardAvailable()) {
             Serial.println("SD card is not available!");
         } else {
             // 直接打开日志文件顺序读取
             String logFilePath = "/logs/cybird_watching.log";
-            if (!SD.exists(logFilePath)) {
+            if(!SD.exists(logFilePath)) {
                 Serial.println("No log file found");
             } else {
                 File logFile = SD.open(logFilePath, FILE_READ);
-                if (!logFile) {
+                if(!logFile) {
                     Serial.println("Failed to open log file");
                 } else {
-                    const int MAX_LINES = 5000; // 最大读取5000行
+                    const int MAX_LINES = 5000;  // 最大读取5000行
                     int linesRead = 0;
 
-                    while (logFile.available() && linesRead < MAX_LINES) {
+                    while(logFile.available() && linesRead < MAX_LINES) {
                         String line = logFile.readStringUntil('\n');
-                        if (line.length() > 0) {
+                        if(line.length() > 0) {
                             // 限制行长度避免输出过长
-                            if (line.length() > 512) {
+                            if(line.length() > 512) {
                                 line = line.substring(0, 512) + "...(truncated)";
                             }
                             Serial.println(line);
@@ -202,7 +202,7 @@ void SerialCommands::handleLogCommand(const String& param) {
 
                     logFile.close();
 
-                    if (linesRead >= MAX_LINES) {
+                    if(linesRead >= MAX_LINES) {
                         Serial.println("\n... (Reached maximum read limit of " + String(MAX_LINES) + " lines) ...");
                     }
                 }
@@ -211,11 +211,10 @@ void SerialCommands::handleLogCommand(const String& param) {
 
         Serial.println("=== End of Log File ===");
         Serial.println("<<<RESPONSE_END>>>");
-        if (logManager) {
+        if(logManager) {
             logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Full log file exported");
         }
-    }
-    else if (param.equals("help")) {
+    } else if(param.equals("help")) {
         Serial.println("<<<RESPONSE_START>>>");
         Serial.println("Log subcommands:");
         Serial.println("  (no param)  - Show last 20 lines (default)");
@@ -228,8 +227,7 @@ void SerialCommands::handleLogCommand(const String& param) {
         Serial.println("  log           - Show last 20 lines");
         Serial.println("  log lines 100 - Show last 100 lines");
         Serial.println("<<<RESPONSE_END>>>");
-    }
-    else {
+    } else {
         Serial.println("<<<RESPONSE_START>>>");
         Serial.println("Unknown log subcommand: " + param);
         Serial.println("Use 'log help' for available subcommands");
@@ -238,7 +236,8 @@ void SerialCommands::handleLogCommand(const String& param) {
     }
 }
 
-void SerialCommands::handleStatusCommand() {
+void SerialCommands::handleStatusCommand()
+{
     // Start response marker
     Serial.println("<<<RESPONSE_START>>>");
 
@@ -259,49 +258,50 @@ void SerialCommands::handleStatusCommand() {
     Serial.println("<<<RESPONSE_END>>>");
 
     // Log to SD card only to avoid interference with command response
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "System status requested");
     }
 }
 
-
-void SerialCommands::handleClearCommand() {
+void SerialCommands::handleClearCommand()
+{
     Serial.println("<<<RESPONSE_START>>>");
     // 发送 ANSI 转义序列清屏
     Serial.println("\033[2J\033[H");
     Serial.println("<<<RESPONSE_END>>>");
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_DEBUG, "CMD", "Terminal cleared");
     }
 }
 
-void SerialCommands::handleTreeCommand(const String& param) {
+void SerialCommands::handleTreeCommand(const String& param)
+{
     Serial.println("<<<RESPONSE_START>>>");
 
     // 解析参数
     String path = "/";
-    uint8_t levels = 3; // 默认显示3层
+    uint8_t levels = 3;  // 默认显示3层
 
-    if (!param.isEmpty()) {
+    if(!param.isEmpty()) {
         // 分割参数，支持路径和层级两个参数
         int firstSpace = param.indexOf(' ');
-        if (firstSpace > 0) {
+        if(firstSpace > 0) {
             // 有两个参数
             path = param.substring(0, firstSpace);
             String levelsStr = param.substring(firstSpace + 1);
             levels = levelsStr.toInt();
-            if (levels == 0) levels = 3; // 如果转换失败，使用默认值
-            if (levels > 5) levels = 5; // 限制最大层级避免过深显示
+            if(levels == 0) levels = 3;  // 如果转换失败，使用默认值
+            if(levels > 5) levels = 5;   // 限制最大层级避免过深显示
         } else {
             // 只有一个参数，判断是路径还是层级
-            if (param.charAt(0) == '/' || param.indexOf('/') > 0) {
+            if(param.charAt(0) == '/' || param.indexOf('/') > 0) {
                 // 包含斜杠，认为是路径
                 path = param;
             } else {
                 // 纯数字，认为是层级
                 levels = param.toInt();
-                if (levels == 0) levels = 3;
-                if (levels > 5) levels = 5;
+                if(levels == 0) levels = 3;
+                if(levels > 5) levels = 5;
             }
         }
     }
@@ -310,7 +310,7 @@ void SerialCommands::handleTreeCommand(const String& param) {
     Serial.printf("Path: %s, Levels: %d\n\n", path.c_str(), levels);
 
     // 检查SD卡是否可用
-    if (!logManager || !logManager->isSDCardAvailable()) {
+    if(!logManager || !logManager->isSDCardAvailable()) {
         Serial.println("SD card is not available!");
         Serial.println("<<<RESPONSE_END>>>");
         return;
@@ -322,19 +322,21 @@ void SerialCommands::handleTreeCommand(const String& param) {
     Serial.println("\n=== End of Tree ===");
     Serial.println("<<<RESPONSE_END>>>");
 
-    if (logManager) {
-        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Tree command executed for path: " + path + " with " + String(levels) + " levels");
+    if(logManager) {
+        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD",
+                                "Tree command executed for path: " + path + " with " + String(levels) + " levels");
     }
 }
 
-void SerialCommands::showHelp() {
+void SerialCommands::showHelp()
+{
     Serial.println("<<<RESPONSE_START>>>");
     Serial.println("=== Available Commands ===");
-    for (int i = 0; i < commandCount; i++) {
+    for(int i = 0; i < commandCount; i++) {
         // 格式化命令和描述，确保对齐
         String line = "  " + commands[i].name;
         // 添加填充空格
-        while (line.length() < 15) line += " ";
+        while(line.length() < 15) line += " ";
         line += "- " + commands[i].description;
         Serial.println(line);
     }
@@ -343,26 +345,30 @@ void SerialCommands::showHelp() {
     Serial.println("Example: log lines 100");
     Serial.println("<<<RESPONSE_END>>>");
 
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Help command executed");
     }
 }
 
-void SerialCommands::setEnabled(bool enabled) {
+void SerialCommands::setEnabled(bool enabled)
+{
     commandEnabled = enabled;
-    if (logManager) {
-        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Command system " + String(enabled ? "enabled" : "disabled"));
+    if(logManager) {
+        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD",
+                                "Command system " + String(enabled ? "enabled" : "disabled"));
     }
 }
 
-bool SerialCommands::isEnabled() const {
+bool SerialCommands::isEnabled() const
+{
     return commandEnabled;
 }
 
-void SerialCommands::handleBirdCommand(const String& param) {
+void SerialCommands::handleBirdCommand(const String& param)
+{
     Serial.println("<<<RESPONSE_START>>>");
 
-    if (param.isEmpty() || param.equals("help")) {
+    if(param.isEmpty() || param.equals("help")) {
         Serial.println("Bird watching subcommands:");
         Serial.println("  trigger [id] - Manually trigger a bird appearance (random if no id)");
         Serial.println("  list         - List all available birds");
@@ -377,17 +383,16 @@ void SerialCommands::handleBirdCommand(const String& param) {
         Serial.println("  bird stats        - Show statistics");
         Serial.println("  bird status       - Show system status");
         Serial.println("  bird reset        - Reset all statistics");
-    }
-    else if (param.equals("trigger") || param.startsWith("trigger ")) {
+    } else if(param.equals("trigger") || param.startsWith("trigger ")) {
         uint16_t bird_id = 0;
-        
+
         // 检查是否有指定小鸟ID
-        if (param.startsWith("trigger ")) {
-            String id_str = param.substring(8); // 获取 "trigger " 后面的内容
+        if(param.startsWith("trigger ")) {
+            String id_str = param.substring(8);  // 获取 "trigger " 后面的内容
             id_str.trim();
             bird_id = id_str.toInt();
-            
-            if (bird_id > 0) {
+
+            if(bird_id > 0) {
                 Serial.println("Triggering bird ID " + String(bird_id) + "...");
             } else {
                 Serial.println("Invalid bird ID: " + id_str);
@@ -397,9 +402,9 @@ void SerialCommands::handleBirdCommand(const String& param) {
         } else {
             Serial.println("Triggering random bird appearance...");
         }
-        
-        if (BirdWatching::triggerBird(bird_id)) {
-            if (bird_id > 0) {
+
+        if(BirdWatching::triggerBird(bird_id)) {
+            if(bird_id > 0) {
                 Serial.println("Bird ID " + String(bird_id) + " triggered successfully!");
             } else {
                 Serial.println("Random bird triggered successfully!");
@@ -407,20 +412,17 @@ void SerialCommands::handleBirdCommand(const String& param) {
         } else {
             Serial.println("Failed to trigger bird. Check if system is initialized or bird ID exists.");
         }
-    }
-    else if (param.equals("list")) {
+    } else if(param.equals("list")) {
         Serial.println("=== Available Birds ===");
         BirdWatching::listBirds();
         Serial.println("=== End of List ===");
-    }
-    else if (param.equals("stats")) {
+    } else if(param.equals("stats")) {
         Serial.println("=== Bird Watching Statistics ===");
         BirdWatching::showBirdStatistics();
         Serial.println("=== End of Statistics ===");
-    }
-    else if (param.equals("status")) {
+    } else if(param.equals("status")) {
         Serial.println("=== Bird Watching System Status ===");
-        if (BirdWatching::isBirdManagerInitialized()) {
+        if(BirdWatching::isBirdManagerInitialized()) {
             Serial.println("Bird Manager: Initialized");
             Serial.println("Animation System: " + String(BirdWatching::isAnimationPlaying() ? "Playing" : "Idle"));
             Serial.println("Statistics Records: " + String(BirdWatching::getStatisticsCount()));
@@ -428,31 +430,30 @@ void SerialCommands::handleBirdCommand(const String& param) {
             Serial.println("Bird Manager: NOT INITIALIZED");
         }
         Serial.println("=== End Status ===");
-    }
-    else if (param.equals("reset")) {
+    } else if(param.equals("reset")) {
         Serial.println("Resetting bird watching statistics...");
-        if (BirdWatching::resetBirdStatistics()) {
+        if(BirdWatching::resetBirdStatistics()) {
             Serial.println("Statistics reset successfully and saved to file!");
         } else {
             Serial.println("Failed to reset statistics. Check if system is initialized.");
         }
-    }
-    else {
+    } else {
         Serial.println("Unknown bird subcommand: " + param);
         Serial.println("Use 'bird help' for available subcommands");
     }
 
     Serial.println("<<<RESPONSE_END>>>");
 
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Bird command executed: " + param);
     }
 }
 
-void SerialCommands::handleTaskCommand(const String& param) {
+void SerialCommands::handleTaskCommand(const String& param)
+{
     Serial.println("<<<RESPONSE_START>>>");
 
-    if (param.isEmpty() || param.equals("help")) {
+    if(param.isEmpty() || param.equals("help")) {
         Serial.println("Task monitoring subcommands:");
         Serial.println("  stats      - Show task statistics (stack usage, heap)");
         Serial.println("  info       - Show detailed task information");
@@ -460,12 +461,11 @@ void SerialCommands::handleTaskCommand(const String& param) {
         Serial.println("Examples:");
         Serial.println("  task stats  - Show task statistics");
         Serial.println("  task info   - Show detailed info");
-    }
-    else if (param.equals("stats") || param.equals("info")) {
+    } else if(param.equals("stats") || param.equals("info")) {
         Serial.println("=== Dual-Core Task Monitor ===");
-        
+
         TaskManager* taskMgr = TaskManager::getInstance();
-        if (taskMgr) {
+        if(taskMgr) {
             Serial.println("\n--- Architecture ---");
             Serial.println("Core 0 (Protocol Core):  UI Task");
             Serial.println("  - LVGL GUI (200Hz)");
@@ -477,36 +477,36 @@ void SerialCommands::handleTaskCommand(const String& param) {
             Serial.println("  - Serial Commands");
             Serial.println("  - Bird Manager Logic");
             Serial.println("  - Statistics");
-            
+
             Serial.println("\n--- Task Statistics ---");
             taskMgr->printTaskStats();
-            
-            if (param.equals("info")) {
+
+            if(param.equals("info")) {
                 Serial.println("\n--- FreeRTOS Info ---");
                 Serial.printf("Task Count: %d\n", uxTaskGetNumberOfTasks());
                 Serial.printf("Min Free Heap Ever: %u bytes\n", ESP.getMinFreeHeap());
-                Serial.printf("Heap Fragmentation: %d%%\n", 
-                    (int)(100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap())));
+                Serial.printf("Heap Fragmentation: %d%%\n",
+                              (int)(100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap())));
             }
         } else {
             Serial.println("Task Manager not initialized!");
         }
-        
+
         Serial.println("=== End Monitor ===");
-    }
-    else {
+    } else {
         Serial.println("Unknown task subcommand: " + param);
         Serial.println("Use 'task help' for available subcommands");
     }
 
     Serial.println("<<<RESPONSE_END>>>");
 
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Task command executed: " + param);
     }
 }
 
-SerialCommands::~SerialCommands() {
+SerialCommands::~SerialCommands()
+{
     LOG_DEBUG("CMD", "Serial command system destroyed");
 }
 
@@ -514,10 +514,11 @@ SerialCommands::~SerialCommands() {
 // 文件传输命令实现
 // ============================================
 
-void SerialCommands::handleFileCommand(const String& param) {
+void SerialCommands::handleFileCommand(const String& param)
+{
     Serial.println("<<<RESPONSE_START>>>");
 
-    if (param.isEmpty() || param.equals("help")) {
+    if(param.isEmpty() || param.equals("help")) {
         Serial.println("File transfer subcommands:");
         Serial.println("  upload <path>   - Upload file to SD card (receives base64 data)");
         Serial.println("  download <path> - Download file from SD card (sends base64 data)");
@@ -534,41 +535,37 @@ void SerialCommands::handleFileCommand(const String& param) {
         Serial.println("  file download /configs/bird_config.csv");
         Serial.println("  file info /birds/1001/1.bin");
         Serial.println("  file delete /temp/old_file.txt");
-    }
-    else if (param.startsWith("upload ")) {
+    } else if(param.startsWith("upload ")) {
         String path = param.substring(7);
         path.trim();
         handleFileUpload(path);
-    }
-    else if (param.startsWith("download ")) {
+    } else if(param.startsWith("download ")) {
         String path = param.substring(9);
         path.trim();
         handleFileDownload(path);
-    }
-    else if (param.startsWith("delete ")) {
+    } else if(param.startsWith("delete ")) {
         String path = param.substring(7);
         path.trim();
         handleFileDelete(path);
-    }
-    else if (param.startsWith("info ")) {
+    } else if(param.startsWith("info ")) {
         String path = param.substring(5);
         path.trim();
         handleFileInfo(path);
-    }
-    else {
+    } else {
         Serial.println("Unknown file subcommand");
         Serial.println("Use 'file help' for available subcommands");
     }
 
     Serial.println("<<<RESPONSE_END>>>");
 
-    if (logManager) {
+    if(logManager) {
         logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "File command executed: " + param);
     }
 }
 
-void SerialCommands::handleFileUpload(const String& path) {
-    if (!logManager || !logManager->isSDCardAvailable()) {
+void SerialCommands::handleFileUpload(const String& path)
+{
+    if(!logManager || !logManager->isSDCardAvailable()) {
         Serial.println("ERROR: SD card not available");
         return;
     }
@@ -576,19 +573,19 @@ void SerialCommands::handleFileUpload(const String& path) {
     // 确保目录存在
     String dirPath = path;
     int lastSlash = dirPath.lastIndexOf('/');
-    if (lastSlash > 0) {
+    if(lastSlash > 0) {
         dirPath = dirPath.substring(0, lastSlash);
-        if (!SD.exists(dirPath)) {
+        if(!SD.exists(dirPath)) {
             // 创建目录结构
             String currentPath = "";
-            int start = 1; // 跳过开头的 '/'
-            while (start < dirPath.length()) {
+            int start = 1;  // 跳过开头的 '/'
+            while(start < dirPath.length()) {
                 int nextSlash = dirPath.indexOf('/', start);
-                if (nextSlash == -1) nextSlash = dirPath.length();
-                
+                if(nextSlash == -1) nextSlash = dirPath.length();
+
                 currentPath += "/" + dirPath.substring(start, nextSlash);
-                if (!SD.exists(currentPath)) {
-                    if (!SD.mkdir(currentPath)) {
+                if(!SD.exists(currentPath)) {
+                    if(!SD.mkdir(currentPath)) {
                         Serial.println("ERROR: Failed to create directory: " + currentPath);
                         return;
                     }
@@ -603,16 +600,16 @@ void SerialCommands::handleFileUpload(const String& path) {
     Serial.println("Send FILE_SIZE:<bytes> first, then base64 data, end with FILE_END");
 
     // 等待文件大小
-    unsigned long timeout = millis() + 30000; // 30秒超时
+    unsigned long timeout = millis() + 30000;  // 30秒超时
     size_t expectedSize = 0;
     bool sizeReceived = false;
 
-    while (millis() < timeout && !sizeReceived) {
-        if (Serial.available()) {
+    while(millis() < timeout && !sizeReceived) {
+        if(Serial.available()) {
             String line = Serial.readStringUntil('\n');
             line.trim();
-            
-            if (line.startsWith("FILE_SIZE:")) {
+
+            if(line.startsWith("FILE_SIZE:")) {
                 expectedSize = line.substring(10).toInt();
                 sizeReceived = true;
                 Serial.printf("Expecting %u bytes\n", expectedSize);
@@ -621,14 +618,14 @@ void SerialCommands::handleFileUpload(const String& path) {
         delay(10);
     }
 
-    if (!sizeReceived) {
+    if(!sizeReceived) {
         Serial.println("ERROR: Timeout waiting for FILE_SIZE");
         return;
     }
 
     // 打开文件准备写入
     File file = SD.open(path, FILE_WRITE);
-    if (!file) {
+    if(!file) {
         Serial.println("ERROR: Failed to create file: " + path);
         return;
     }
@@ -637,14 +634,14 @@ void SerialCommands::handleFileUpload(const String& path) {
     String base64Buffer = "";
     size_t totalWritten = 0;
     bool transferComplete = false;
-    timeout = millis() + 120000; // 2分钟超时
+    timeout = millis() + 120000;  // 2分钟超时
 
-    while (millis() < timeout && !transferComplete) {
-        if (Serial.available()) {
+    while(millis() < timeout && !transferComplete) {
+        if(Serial.available()) {
             String line = Serial.readStringUntil('\n');
             line.trim();
 
-            if (line.equals("FILE_END")) {
+            if(line.equals("FILE_END")) {
                 transferComplete = true;
                 break;
             }
@@ -653,59 +650,59 @@ void SerialCommands::handleFileUpload(const String& path) {
             base64Buffer += line;
 
             // 每1KB解码一次（base64编码后约1365字符）
-            if (base64Buffer.length() >= 1360) {
+            if(base64Buffer.length() >= 1360) {
                 uint8_t decoded[1024];
                 size_t decodedLen = base64Decode(base64Buffer.substring(0, 1364), decoded, sizeof(decoded));
-                
-                if (decodedLen > 0) {
+
+                if(decodedLen > 0) {
                     size_t written = file.write(decoded, decodedLen);
                     totalWritten += written;
-                    Serial.printf("Progress: %u / %u bytes (%.1f%%)\n", 
-                        totalWritten, expectedSize, 
-                        (totalWritten * 100.0) / expectedSize);
+                    Serial.printf("Progress: %u / %u bytes (%.1f%%)\n", totalWritten, expectedSize,
+                                  (totalWritten * 100.0) / expectedSize);
                 }
-                
+
                 base64Buffer = base64Buffer.substring(1364);
-                timeout = millis() + 120000; // 重置超时
+                timeout = millis() + 120000;  // 重置超时
             }
         }
         delay(1);
     }
 
     // 处理剩余数据
-    if (base64Buffer.length() > 0) {
+    if(base64Buffer.length() > 0) {
         uint8_t decoded[1024];
         size_t decodedLen = base64Decode(base64Buffer, decoded, sizeof(decoded));
-        if (decodedLen > 0) {
+        if(decodedLen > 0) {
             totalWritten += file.write(decoded, decodedLen);
         }
     }
 
     file.close();
 
-    if (transferComplete) {
+    if(transferComplete) {
         Serial.printf("SUCCESS: File uploaded successfully!\n");
         Serial.printf("Path: %s\n", path.c_str());
         Serial.printf("Size: %u bytes\n", totalWritten);
     } else {
         Serial.println("ERROR: Transfer timeout or incomplete");
-        SD.remove(path); // 删除不完整的文件
+        SD.remove(path);  // 删除不完整的文件
     }
 }
 
-void SerialCommands::handleFileDownload(const String& path) {
-    if (!logManager || !logManager->isSDCardAvailable()) {
+void SerialCommands::handleFileDownload(const String& path)
+{
+    if(!logManager || !logManager->isSDCardAvailable()) {
         Serial.println("ERROR: SD card not available");
         return;
     }
 
-    if (!SD.exists(path)) {
+    if(!SD.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
     File file = SD.open(path, FILE_READ);
-    if (!file) {
+    if(!file) {
         Serial.println("ERROR: Failed to open file: " + path);
         return;
     }
@@ -714,23 +711,23 @@ void SerialCommands::handleFileDownload(const String& path) {
     Serial.printf("FILE_START:%s:%u\n", path.c_str(), fileSize);
 
     // 分块读取并base64编码发送
-    const size_t CHUNK_SIZE = 768; // 768字节编码后刚好1024字符
+    const size_t CHUNK_SIZE = 768;  // 768字节编码后刚好1024字符
     uint8_t buffer[CHUNK_SIZE];
     size_t totalSent = 0;
 
-    while (file.available()) {
+    while(file.available()) {
         size_t bytesRead = file.read(buffer, CHUNK_SIZE);
-        if (bytesRead > 0) {
+        if(bytesRead > 0) {
             String encoded = base64Encode(buffer, bytesRead);
             Serial.println(encoded);
             totalSent += bytesRead;
-            
+
             // 显示进度
-            if (totalSent % (CHUNK_SIZE * 10) == 0 || totalSent == fileSize) {
+            if(totalSent % (CHUNK_SIZE * 10) == 0 || totalSent == fileSize) {
                 Serial.printf("PROGRESS:%u/%u\n", totalSent, fileSize);
             }
         }
-        yield(); // 喂狗
+        yield();  // 喂狗
     }
 
     file.close();
@@ -738,37 +735,39 @@ void SerialCommands::handleFileDownload(const String& path) {
     Serial.printf("SUCCESS: %u bytes sent\n", totalSent);
 }
 
-void SerialCommands::handleFileDelete(const String& path) {
-    if (!logManager || !logManager->isSDCardAvailable()) {
+void SerialCommands::handleFileDelete(const String& path)
+{
+    if(!logManager || !logManager->isSDCardAvailable()) {
         Serial.println("ERROR: SD card not available");
         return;
     }
 
-    if (!SD.exists(path)) {
+    if(!SD.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
-    if (SD.remove(path)) {
+    if(SD.remove(path)) {
         Serial.println("SUCCESS: File deleted: " + path);
     } else {
         Serial.println("ERROR: Failed to delete file: " + path);
     }
 }
 
-void SerialCommands::handleFileInfo(const String& path) {
-    if (!logManager || !logManager->isSDCardAvailable()) {
+void SerialCommands::handleFileInfo(const String& path)
+{
+    if(!logManager || !logManager->isSDCardAvailable()) {
         Serial.println("ERROR: SD card not available");
         return;
     }
 
-    if (!SD.exists(path)) {
+    if(!SD.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
     File file = SD.open(path, FILE_READ);
-    if (!file) {
+    if(!file) {
         Serial.println("ERROR: Failed to open file: " + path);
         return;
     }
@@ -777,21 +776,20 @@ void SerialCommands::handleFileInfo(const String& path) {
     Serial.printf("Path: %s\n", path.c_str());
     Serial.printf("Size: %u bytes (%.2f KB)\n", file.size(), file.size() / 1024.0);
     Serial.printf("Type: %s\n", file.isDirectory() ? "Directory" : "File");
-    
+
     file.close();
     Serial.println("========================");
 }
 
 // Base64编码实现
-String SerialCommands::base64Encode(const uint8_t* data, size_t length) {
+String SerialCommands::base64Encode(const uint8_t* data, size_t length)
+{
     const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     String result;
     result.reserve((length + 2) / 3 * 4);
 
-    for (size_t i = 0; i < length; i += 3) {
-        uint32_t b = (data[i] << 16) | 
-                     ((i + 1 < length ? data[i + 1] : 0) << 8) |
-                     (i + 2 < length ? data[i + 2] : 0);
+    for(size_t i = 0; i < length; i += 3) {
+        uint32_t b = (data[i] << 16) | ((i + 1 < length ? data[i + 1] : 0) << 8) | (i + 2 < length ? data[i + 2] : 0);
 
         result += base64_chars[(b >> 18) & 0x3F];
         result += base64_chars[(b >> 12) & 0x3F];
@@ -803,24 +801,25 @@ String SerialCommands::base64Encode(const uint8_t* data, size_t length) {
 }
 
 // Base64解码实现
-size_t SerialCommands::base64Decode(const String& input, uint8_t* output, size_t maxLength) {
+size_t SerialCommands::base64Decode(const String& input, uint8_t* output, size_t maxLength)
+{
     const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    
+
     size_t outLen = 0;
     uint32_t buffer = 0;
     int bits = 0;
 
-    for (size_t i = 0; i < input.length() && outLen < maxLength; i++) {
+    for(size_t i = 0; i < input.length() && outLen < maxLength; i++) {
         char c = input[i];
-        if (c == '=') break;
+        if(c == '=') break;
 
         const char* p = strchr(base64_chars, c);
-        if (!p) continue;
+        if(!p) continue;
 
         buffer = (buffer << 6) | (p - base64_chars);
         bits += 6;
 
-        if (bits >= 8) {
+        if(bits >= 8) {
             bits -= 8;
             output[outLen++] = (buffer >> bits) & 0xFF;
         }

@@ -1,18 +1,15 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFi.h>
 
- 
 class Network
 {
 private:
-	 
 public:
-	void init(String ssid, String password);
-	unsigned int getBilibiliFans(String url);
-
+    void init(String ssid, String password);
+    unsigned int getBilibiliFans(String url);
 };
 
 #endif
