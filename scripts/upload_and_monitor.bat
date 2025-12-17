@@ -28,4 +28,4 @@ echo 波特率: %BAUD_RATE%
 echo.
 
 cd /d "%~dp0..\"
-pio run -e %ENV% --target upload && pio device monitor --port %COM_PORT% --baud %BAUD_RATE%
+pio run -e %ENV% --target upload -t monitor
