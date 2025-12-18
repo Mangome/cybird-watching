@@ -111,9 +111,10 @@ void my_disp_flush(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 
 void Display::init()
 {
-	// 关键：先点亮背光（在TFT初始化之前）
-	pinMode(HardwareConfig::getPinTFT_BL(), OUTPUT);
-	digitalWrite(HardwareConfig::getPinTFT_BL(), HIGH);
+	// 使用 PWM 控制背光（兼容 ESP32 和 ESP32-S3）
+	ledcSetup(LCD_BL_PWM_CHANNEL, 5000, 8);  // 5kHz, 8位分辨率
+	ledcAttachPin(HardwareConfig::getPinTFT_BL(), LCD_BL_PWM_CHANNEL);
+	setBackLight(1.0);  // 最大亮度
 
 	lv_init();
 
@@ -150,9 +151,7 @@ void Display::routine()
 
 void Display::setBackLight(float duty)
 {
-	if (duty > 0.5) {
-		digitalWrite(HardwareConfig::getPinTFT_BL(), HIGH);
-	} else {
-		digitalWrite(HardwareConfig::getPinTFT_BL(), LOW);
-	}
+	duty = constrain(duty, 0.0f, 1.0f);
+	// 不反相：高电平有效
+	ledcWrite(LCD_BL_PWM_CHANNEL, (int)(duty * 255));
 }
