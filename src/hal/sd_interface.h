@@ -74,6 +74,11 @@ public:
     static void listDir(const char* dirname, uint8_t levels);
     
     /**
+     * @brief 树形显示目录内容（兼容旧 SdCard::treeDir）
+     */
+    static void treeDir(const char* dirname, uint8_t levels, const char* prefix = "");
+    
+    /**
      * @brief 创建目录
      */
     static void createDir(const char* path);
@@ -114,14 +119,22 @@ public:
     static void deleteFile(const char* path);
     
     /**
+     * @brief 检查文件/目录是否存在
+     */
+    static bool exists(const char* path);
+    
+    /**
      * @brief 读取二进制文件
      */
     static void readBinFromSd(const char* path, uint8_t* buf);
     
     /**
      * @brief 写入二进制文件
+     * @param path 文件路径
+     * @param buf 数据缓冲区
+     * @param size 数据大小（字节）
      */
-    static void writeBinToSd(const char* path, uint8_t* buf);
+    static void writeBinToSd(const char* path, uint8_t* buf, size_t size);
     
 private:
     // 单例模式 - 禁止外部实例化

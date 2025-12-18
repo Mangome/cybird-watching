@@ -2,15 +2,17 @@
 #define RGB_H
 
 #include <FastLED.h>
+#include "config/hardware_config.h"
 
-#define RGB_LED_NUM 2
-#define RGB_LED_PIN 27
+// 最大LED数量 (用于静态数组)
+#define MAX_RGB_LEDS 4
 
 
 class Pixel
 {
 private:
-	CRGB color_buffers[RGB_LED_NUM];
+	CRGB color_buffers[MAX_RGB_LEDS];
+	int led_count;  // 实际LED数量
 	
 	// 通用闪烁方法
 	void flash(uint8_t r, uint8_t g, uint8_t b, int duration_ms);

@@ -2,7 +2,8 @@
 #define BIRD_BUNDLE_LOADER_H
 
 #include <Arduino.h>
-#include <SD.h>
+#include <FS.h>
+#include "hal/sd_interface.h"
 #include <lvgl.h>
 #include <string>
 #include <vector>

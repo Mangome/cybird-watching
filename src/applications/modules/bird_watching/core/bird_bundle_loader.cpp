@@ -23,8 +23,10 @@ bool BirdBundleLoader::loadBundle(const std::string& bundle_path) {
 
     bundle_path_ = bundle_path;
 
+
     // 打开bundle文件
-    File file = SD.open(bundle_path.c_str());
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(bundle_path.c_str());
     if (!file) {
         LOG_ERROR("BUNDLE", "Failed to open bundle: " + String(bundle_path.c_str()));
         return false;
@@ -86,8 +88,10 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
     // 获取帧索引信息
     const FrameIndexEntry& entry = index_table_[frame_index];
 
+
     // 打开bundle文件
-    File file = SD.open(bundle_path_.c_str());
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(bundle_path_.c_str());
     if (!file) {
         LOG_ERROR("BUNDLE", "Failed to open bundle for frame reading");
         return false;

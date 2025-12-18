@@ -1,7 +1,7 @@
 #include "bird_animation.h"
 #include "bird_utils.h"
 #include "system/logging/log_manager.h"
-#include "drivers/storage/sd_card/sd_card.h"
+#include "hal/sd_interface.h"
 #include "system/tasks/task_manager.h"
 #include <cstring>
 #include <cstdio>
@@ -339,7 +339,8 @@ void BirdAnimation::playNextFrame() {
 
 bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     // 使用项目的SD卡接口
-    File file = SD.open(file_path.c_str());
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(file_path.c_str());
     if (!file) {
         return false;
     }

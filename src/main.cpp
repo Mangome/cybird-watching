@@ -5,7 +5,7 @@
 #include "drivers/sensors/imu/imu.h"
 #include "drivers/sensors/ambient/ambient.h"
 #include "drivers/communication/network/network.h"
-#include "drivers/storage/sd_card/sd_card.h"
+#include "hal/sd_interface.h"
 #include "drivers/io/rgb_led/rgb_led.h"
 #include "system/lvgl/ports/lv_port_indev.h"
 #include "system/lvgl/ports/lv_port_fatfs.h"
@@ -20,7 +20,6 @@
 Display screen;
 IMU mpu;
 Pixel rgb;
-SdCard tf;
 Network wifi;
 
 lv_ui guider_ui;
@@ -59,8 +58,12 @@ void setup()
     LOG_INFO("MAIN", "Initializing SD card...");
     // 在烧录后添加额外延迟，让硬件稳定
     delay(500);  // 增加延迟确保供电稳定
-    tf.init();
-    LOG_INFO("MAIN", "SD card initialized");
+    
+    if (!HAL::SDInterface::init()) {
+        LOG_ERROR("MAIN", "SD card initialization failed!");
+    } else {
+        LOG_INFO("MAIN", "SD card mounted in " + String(HAL::SDInterface::getModeName()) + " mode");
+    }
 
     // 通知LogManager SD卡已初始化
     LOG_INFO("MAIN", "Re-initializing log manager with SD card support...");
@@ -97,8 +100,8 @@ void setup()
     LOG_INFO("MAIN", "RGB LED initialized (default: OFF)");
 
     // LOG_INFO("MAIN", "Reading WiFi configuration...");
-    // String ssid = tf.readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid
-    // String password = tf.readFileLine("/wifi.txt", 2);    // line-2 for WiFi password
+    // String ssid = HAL::SDInterface::readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid
+    // String password = HAL::SDInterface::readFileLine("/wifi.txt", 2);    // line-2 for WiFi password
     // LOG_INFO("MAIN", "WiFi configuration read");
 
     /*** Inflate GUI objects ***/

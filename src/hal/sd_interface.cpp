@@ -418,8 +418,7 @@ void SDInterface::listDir(const char* dirname, uint8_t levels)
     }
 }
 
-/*
-// void HAL::SDInterface::treeDir(const char* dirname, uint8_t levels, const char* prefix)
+void SDInterface::treeDir(const char* dirname, uint8_t levels, const char* prefix)
 {
     if (!mounted_) {
         Serial.println("[SD] Card not mounted");
@@ -476,7 +475,6 @@ void SDInterface::listDir(const char* dirname, uint8_t levels)
     }
     root.close();
 }
-*/
 
 void SDInterface::createDir(const char* path)
 {
@@ -613,6 +611,14 @@ void SDInterface::deleteFile(const char* path)
     }
 }
 
+bool SDInterface::exists(const char* path)
+{
+    if (!mounted_) return false;
+    
+    fs::FS& fs = getFS();
+    return fs.exists(path);
+}
+
 void SDInterface::readBinFromSd(const char* path, uint8_t* buf)
 {
     if (!mounted_) return;
@@ -628,7 +634,7 @@ void SDInterface::readBinFromSd(const char* path, uint8_t* buf)
     file.close();
 }
 
-void SDInterface::writeBinToSd(const char* path, uint8_t* buf)
+void SDInterface::writeBinToSd(const char* path, uint8_t* buf, size_t size)
 {
     if (!mounted_) return;
     
@@ -639,10 +645,9 @@ void SDInterface::writeBinToSd(const char* path, uint8_t* buf)
         return;
     }
     
-    // 注意：需要知道 buf 的大小，这里假设调用者负责管理
-    // 实际使用时建议添加 size 参数
-    file.write(buf, sizeof(buf));
+    file.write(buf, size);
     file.close();
+    LOG_INFO("SD", "Binary file written: " + String(path) + " (" + String(size) + " bytes)");
 }
 
 } // namespace HAL
