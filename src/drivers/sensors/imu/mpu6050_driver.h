@@ -42,6 +42,17 @@ struct IMUData {
 };
 
 /**
+ * @brief IMU手势检测阈值结构
+ */
+struct IMUGestureThresholds {
+    int16_t shake;          ///< 摇动检测阈值
+    int16_t forward_tilt;   ///< 前倾检测阈值（负值）
+    int16_t backward_tilt;  ///< 后倾检测阈值（正值）
+    int16_t left_tilt;      ///< 左倾检测阈值（正值）
+    int16_t right_tilt;     ///< 右倾检测阈值（负值）
+};
+
+/**
  * @brief IMU驱动抽象接口
  */
 class IMUDriver {
@@ -66,6 +77,12 @@ public:
      * @return 传感器类型枚举
      */
     virtual IMUSensorType getType() = 0;
+    
+    /**
+     * @brief 获取手势检测阈值
+     * @return 阈值结构
+     */
+    virtual IMUGestureThresholds getGestureThresholds() = 0;
 };
 
 /**
@@ -97,6 +114,20 @@ public:
      * @return IMUSensorType::MPU6050
      */
     IMUSensorType getType() override { return IMUSensorType::MPU6050; }
+    
+    /**
+     * @brief 获取手势检测阈值（±2g量程，16384 LSB/g）
+     * @return 阈值结构
+     */
+    IMUGestureThresholds getGestureThresholds() override {
+        return {
+            8000,   // shake: ~0.5g
+            -10000, // forward_tilt: ~-0.6g
+            14000,  // backward_tilt: ~0.85g
+            10000,  // left_tilt: ~0.6g
+            -10000  // right_tilt: ~-0.6g
+        };
+    }
     
 private:
     uint8_t i2c_addr_;      ///< I2C地址

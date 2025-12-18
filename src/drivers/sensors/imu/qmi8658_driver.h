@@ -40,6 +40,20 @@ public:
      */
     IMUSensorType getType() override { return IMUSensorType::QMI8658; }
     
+    /**
+     * @brief 获取手势检测阈值（±8g量程，4096 LSB/g）
+     * @return 阈值结构
+     */
+    IMUGestureThresholds getGestureThresholds() override {
+        return {
+            2000,  // shake: ~0.5g
+            -2500, // forward_tilt: ~-0.6g
+            3500,  // backward_tilt: ~0.85g
+            2500,  // left_tilt: ~0.6g
+            -2500  // right_tilt: ~-0.6g
+        };
+    }
+    
 private:
     bool initialized_;      ///< 初始化标志
     

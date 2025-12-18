@@ -32,11 +32,14 @@ bool HardwareDetector::detect() {
     // 2. 初始化I2C总线
     int sda = HardwareConfig::getPinIMU_SDA();
     int scl = HardwareConfig::getPinIMU_SCL();
+    
+    LOG_INFO("HWDetect", String("Initializing I2C: SDA=GPIO") + sda + ", SCL=GPIO" + scl);
+    
     Wire.begin(sda, scl);
     Wire.setClock(HardwareConfig::getI2CFreq());
     delay(100);
     
-    LOG_INFO("HWDetect", String("I2C initialized: SDA=") + sda + ", SCL=" + scl);
+    LOG_INFO("HWDetect", String("I2C initialized at ") + (HardwareConfig::getI2CFreq() / 1000) + " kHz");
     
     // 3. 扫描I2C总线
     int device_count = scanI2CBus(sda, scl);
@@ -114,19 +117,36 @@ HardwareConfig::SDCardMode HardwareDetector::detectSDCardMode() {
 int HardwareDetector::scanI2CBus(int sda, int scl) {
     int count = 0;
     
+    LOG_INFO("HWDetect", "========================================");
     LOG_INFO("HWDetect", "Scanning I2C bus...");
+    LOG_INFO("HWDetect", "========================================");
     
     for (uint8_t address = 1; address < 127; address++) {
         Wire.beginTransmission(address);
         uint8_t error = Wire.endTransmission();
         
         if (error == 0) {
-            LOG_INFO("HWDetect", String("  Found device at 0x") + String(address, HEX));
+            String msg = String("  [FOUND] Device at 0x") + String(address, HEX);
+            if (address == 0x68) {
+                msg += " (Possible MPU6050)";
+            } else if (address == 0x6A || address == 0x6B) {
+                msg += " (Possible QMI8658)";
+            } else if (address == 0x23) {
+                msg += " (Possible BH1750)";
+            }
+            LOG_INFO("HWDetect", msg);
             count++;
         } else if (error == 4) {
-            LOG_ERROR("HWDetect", String("  Unknown error at 0x") + String(address, HEX));
+            LOG_ERROR("HWDetect", String("  [ERROR] Unknown error at 0x") + String(address, HEX));
         }
+        // error == 2 表示 NACK on address (设备不存在，正常)
     }
+    
+    if (count == 0) {
+        LOG_WARN("HWDetect", "  No I2C devices found! Check wiring.");
+    }
+    
+    LOG_INFO("HWDetect", "========================================");
     
     return count;
 }

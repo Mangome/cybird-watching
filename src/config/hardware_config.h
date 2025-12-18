@@ -88,7 +88,7 @@ namespace ESP32Pins {
     constexpr int RGB_LED_NUM   = 2;
     
     // I2C 配置
-    constexpr uint32_t I2C_FREQUENCY = 100000;  // 100kHz
+    constexpr uint32_t I2C_FREQUENCY = 400000;  // 400kHz（QMI8658 推荐）
     
     // SPI 配置
     constexpr uint32_t SD_SPI_FREQUENCY = 25000000;  // 25MHz (最大)
@@ -121,7 +121,7 @@ namespace ESP32S3Pins {
     constexpr int SD_SCK        = 14;
     constexpr int SD_MISO       = 15;
     constexpr int SD_MOSI       = 16;
-    constexpr int SD_CS         = 17;
+    constexpr int SD_CS         = 21;  // 修改：避免与IMU_SDA(17)冲突
     
     // IMU (I2C - 兼容 MPU6050 和 QMI8658)
     // 参考S3-25.4mm：GPIO 17=SDA, GPIO 18=SCL
@@ -142,7 +142,7 @@ namespace ESP32S3Pins {
     constexpr int RGB_LED_NUM   = 2;
     
     // I2C 配置
-    constexpr uint32_t I2C_FREQUENCY = 100000;  // 100kHz
+    constexpr uint32_t I2C_FREQUENCY = 400000;  // 400kHz（QMI8658 推荐）
     
     // SDMMC 配置
     // 🔥 性能问题诊断：尝试不同频率

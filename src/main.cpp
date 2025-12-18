@@ -37,7 +37,7 @@ extern "C" {
 #define ENABLE_HAL              1   // 硬件抽象层 (IMU/SD检测)
 #define ENABLE_DISPLAY          1   // TFT显示屏
 #define ENABLE_SD_CARD          1   // SD卡（GUI资源需要）
-#define ENABLE_RGB_LED          0   // RGB LED（暂时禁用）
+#define ENABLE_RGB_LED          1   // RGB LED
 #define ENABLE_AMBIENT_SENSOR   0   // 环境光传感器（暂时禁用）
 
 // ==================== 全局对象 ====================
@@ -114,28 +114,100 @@ void setup() {
     LOG_INFO("MAIN", "Starting peripheral initialization...");
     LOG_INFO("MAIN", "========================================");
     
-    // 2. HAL 硬件抽象层
+    // 2. RGB LED（提前初始化用于调试指示）
+#if ENABLE_RGB_LED
+    LOG_INFO("MAIN", "Initializing RGB LED...");
+    rgb.init();
+    
+    // 启动指示：蓝灯闪 1 次（300ms 更明显）
+    rgb.flashBlue(300);
+    delay(300);
+#endif
+    
+    // 3. HAL 硬件抽象层
 #if ENABLE_HAL
     LOG_INFO("MAIN", "Initializing HAL...");
+    
     if (!hal.initialize()) {
         LOG_ERROR("MAIN", "HAL initialization failed!");
+#if ENABLE_RGB_LED
+        // HAL 初始化失败，闪烁红灯3次
+        for (int i = 0; i < 3; i++) {
+            rgb.flashRed(200);
+            delay(200);
+        }
+#endif
     } else {
         LOG_INFO("MAIN", "HAL initialization successful");
         
         // 测试IMU读取
         HAL::IMUInterface* imu = hal.getIMU();
         if (imu != nullptr) {
-            imu->update(10);
+            LOG_INFO("MAIN", "IMU instance found, testing read...");
+            
+            // 等待传感器稳定并读取多次
+            delay(50);
+            for (int i = 0; i < 5; i++) {
+                imu->update(10);
+                delay(10);
+            }
+            
             int16_t ax = imu->getAccelX();
             int16_t ay = imu->getAccelY();
             int16_t az = imu->getAccelZ();
-            LOG_INFO("MAIN", String("IMU Test - Accel: ") + 
-                     String(ax) + ", " + String(ay) + ", " + String(az));
+            int16_t gx = imu->getGyroX();
+            int16_t gy = imu->getGyroY();
+            int16_t gz = imu->getGyroZ();
+            
+            LOG_INFO("MAIN", String("IMU Test - Accel: X=") + String(ax) + 
+                     ", Y=" + String(ay) + ", Z=" + String(az));
+            LOG_INFO("MAIN", String("IMU Test - Gyro:  X=") + String(gx) + 
+                     ", Y=" + String(gy) + ", Z=" + String(gz));
+            
+            // 检查数据是否有效
+            if (ax != 0 || ay != 0 || az != 0) {
+                LOG_INFO("MAIN", "IMU data valid!");
+#if ENABLE_RGB_LED
+                // IMU 数据有效，快速闪烁绿灯2次
+                rgb.flashGreen(50);
+                delay(100);
+                rgb.flashGreen(50);
+#endif
+            } else {
+                LOG_WARN("MAIN", "IMU returns zero data - sensor may need warm-up");
+#if ENABLE_RGB_LED
+                // 数据异常，闪烁黄灯（红+绿）
+                rgb.flash(255, 255, 0, 100);
+                delay(100);
+                rgb.flash(255, 255, 0, 100);
+#endif
+            }
+        } else {
+            LOG_ERROR("MAIN", "IMU initialization failed - no sensor detected!");
+#if ENABLE_RGB_LED
+            // IMU 检测失败，闪烁红灯2次
+            for (int i = 0; i < 2; i++) {
+                rgb.flashRed(150);
+                delay(150);
+            }
+#endif
         }
     }
 #endif
 
-    // 3. SD卡（必须在显示屏之前初始化，GUI资源在SD卡）
+    // 3.5. 初始化驱动层 IMU（TaskManager 需要）
+    LOG_INFO("MAIN", "Initializing IMU driver...");
+    mpu.init();
+    if (!IMU::isInitialized()) {
+        LOG_ERROR("MAIN", "IMU driver initialization failed!");
+#if ENABLE_RGB_LED
+        rgb.flashRed(300);
+#endif
+    } else {
+        LOG_INFO("MAIN", "IMU driver initialized successfully");
+    }
+
+    // 4. SD卡（必须在显示屏之前初始化，GUI资源在SD卡）
 #if ENABLE_SD_CARD
     LOG_INFO("MAIN", "Initializing SD card...");
     if (!HAL::SDInterface::init()) {
@@ -145,7 +217,7 @@ void setup() {
     }
 #endif
 
-    // 4. 显示屏和GUI
+    // 5. 显示屏和GUI
 #if ENABLE_DISPLAY
     LOG_INFO("MAIN", "Initializing display...");
     screen.init();
@@ -182,13 +254,13 @@ void setup() {
     }
 #endif
 
-    // 5. RGB LED
+    // 6. 运行RGB LED测试序列
 #if ENABLE_RGB_LED
-    LOG_INFO("MAIN", "Initializing RGB LED...");
-    // TODO: 添加RGB LED初始化
+    LOG_INFO("MAIN", "Running RGB LED test sequence...");
+    rgb.testSequence();
 #endif
 
-    // 6. 环境光传感器
+    // 7. 环境光传感器
 #if ENABLE_AMBIENT_SENSOR
     LOG_INFO("MAIN", "Initializing ambient light sensor...");
     // TODO: 添加环境光传感器初始化

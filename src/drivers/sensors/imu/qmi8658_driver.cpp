@@ -37,38 +37,35 @@ bool QMI8658Driver::readData(IMUData& data)
         return false;
     }
     
-    // QMI8658库提供的数据缓冲区
-    float acc[3] = {0};   // 加速度 (mg或m/s²)
-    float gyro[3] = {0};  // 角速度 (dps或rad/s)
+    // 读取原始数据（LSB值）
+    short raw_acc[3] = {0};
+    short raw_gyro[3] = {0};
     unsigned int tim_count = 0;
     
-    // 读取传感器数据
-    QMI8658_read_xyz(acc, gyro, &tim_count);
+    QMI8658_read_xyz_raw(raw_acc, raw_gyro, &tim_count);
     
-    // 转换为统一的IMUData格式
-    // QMI8658_read_xyz返回的单位需要根据库配置确定
-    // 参考代码中使用的是mg和dps，需要转换为m/s²和deg/s
-    data.accel_x = acc[0] / 1000.0f * 9.8f;  // mg -> m/s²
-    data.accel_y = acc[1] / 1000.0f * 9.8f;
-    data.accel_z = acc[2] / 1000.0f * 9.8f;
+    // 保存原始值（用于手势检测）
+    data.accel_x_raw = raw_acc[0];
+    data.accel_y_raw = raw_acc[1];
+    data.accel_z_raw = raw_acc[2];
     
-    data.gyro_x = gyro[0];  // dps（已经是正确单位）
-    data.gyro_y = gyro[1];
-    data.gyro_z = gyro[2];
+    data.gyro_x_raw = raw_gyro[0];
+    data.gyro_y_raw = raw_gyro[1];
+    data.gyro_z_raw = raw_gyro[2];
+    
+    // 转换为物理单位
+    // ±8g 量程: 4096 LSB/g，转换为 m/s²
+    data.accel_x = (float)raw_acc[0] / 4096.0f * 9.8f;
+    data.accel_y = (float)raw_acc[1] / 4096.0f * 9.8f;
+    data.accel_z = (float)raw_acc[2] / 4096.0f * 9.8f;
+    
+    // ±512dps 量程: 64 LSB/dps
+    data.gyro_x = (float)raw_gyro[0] / 64.0f;
+    data.gyro_y = (float)raw_gyro[1] / 64.0f;
+    data.gyro_z = (float)raw_gyro[2] / 64.0f;
     
     // QMI8658库不直接提供温度，设为0
     data.temp = 0.0f;
-    
-    // 计算原始值（用于手势检测等需要原始值的场景）
-    // 根据±8g量程计算
-    data.accel_x_raw = (int16_t)(acc[0] / ACCEL_SCALE);
-    data.accel_y_raw = (int16_t)(acc[1] / ACCEL_SCALE);
-    data.accel_z_raw = (int16_t)(acc[2] / ACCEL_SCALE);
-    
-    // 根据±512dps量程计算
-    data.gyro_x_raw = (int16_t)(gyro[0] / GYRO_SCALE);
-    data.gyro_y_raw = (int16_t)(gyro[1] / GYRO_SCALE);
-    data.gyro_z_raw = (int16_t)(gyro[2] / GYRO_SCALE);
     
     return true;
 }

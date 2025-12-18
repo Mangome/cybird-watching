@@ -79,6 +79,9 @@ public:
 	
 	// 获取传感器类型
 	static IMUSensorType getSensorType() { return sensor_type_; }
+	
+	// 检查初始化状态
+	static bool isInitialized() { return initialized; }
 
 private:
 	// 手势检测辅助方法

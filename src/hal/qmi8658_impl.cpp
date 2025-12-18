@@ -61,6 +61,14 @@ bool QMI8658Impl::begin() {
         return false;
     }
     
+    // 写入 CTRL1 寄存器：使能地址自动递增和传感器
+    LOG_INFO("QMI8658", "Configuring CTRL1...");
+    if (!writeRegister(REG_CTRL1, 0x60)) {
+        LOG_ERROR("QMI8658", "Failed to write CTRL1");
+        return false;
+    }
+    delay(10);  // 等待设置生效
+    
     // 配置加速度计
     if (!configureAccel()) {
         LOG_ERROR("QMI8658", "Failed to configure accelerometer");
@@ -73,11 +81,21 @@ bool QMI8658Impl::begin() {
         return false;
     }
     
+    // 配置 CTRL5（低通滤波器）
+    LOG_INFO("QMI8658", "Configuring filters...");
+    if (!writeRegister(REG_CTRL5, 0x00)) {
+        LOG_ERROR("QMI8658", "Failed to write CTRL5");
+        return false;
+    }
+    
     // 使能传感器
     if (!enableSensors()) {
         LOG_ERROR("QMI8658", "Failed to enable sensors");
         return false;
     }
+    
+    // 等待传感器启动稳定
+    delay(20);
     
     initialized_ = true;
     resetGestureState();
@@ -89,6 +107,19 @@ bool QMI8658Impl::begin() {
 void QMI8658Impl::update(int interval) {
     if (!initialized_) {
         return;
+    }
+    
+    // 检查状态寄存器（0x2E），确认数据是否就绪
+    // Bit 0: 加速度计数据就绪
+    // Bit 1: 陀螺仪数据就绪
+    uint8_t status = 0;
+    if (!readRegister(0x2E, &status, 1)) {
+        return;
+    }
+    
+    // 只有在数据就绪时才读取
+    if ((status & 0x03) != 0x03) {
+        return;  // 数据未就绪
     }
     
     // 读取加速度计数据（从 0x35 开始，连续读取6字节）
@@ -113,7 +144,8 @@ void QMI8658Impl::update(int interval) {
     // 调试输出（每秒一次）
     static unsigned long last_debug_print = 0;
     if (millis() - last_debug_print > 1000) {
-        Serial.printf("QMI8658: ax=%d, ay=%d, az=%d\n", ax_, ay_, az_);
+        Serial.printf("QMI8658: ax=%d, ay=%d, az=%d, gx=%d, gy=%d, gz=%d\n", 
+                     ax_, ay_, az_, gx_, gy_, gz_);
         last_debug_print = millis();
     }
 }
@@ -170,11 +202,20 @@ GestureType QMI8658Impl::getGesture() {
     
     unsigned long current_time = millis();
     
+    // 定期打印倾斜状态（每2秒一次）
+    static unsigned long last_status_print = 0;
+    if (millis() - last_status_print > 2000) {
+        Serial.printf("[IMU] Tilt Status - Forward:%d Backward:%d Left:%d Right:%d\n",
+                     isForwardTilt(), isBackwardTilt(), isLeftTilt(), isRightTilt());
+        last_status_print = millis();
+    }
+    
     // 检测持续前倾手势（保持1秒）
     if (isForwardTilt()) {
         if (forward_hold_start_ == 0) {
             forward_hold_start_ = current_time;
             forward_hold_triggered_ = false;
+            Serial.println("[IMU] Forward tilt detected, waiting for hold...");
         } else if (!forward_hold_triggered_ && (current_time - forward_hold_start_ >= 1000)) {
             forward_hold_triggered_ = true;
             LOG_INFO("QMI8658", "Gesture: FORWARD_HOLD (1s)");
@@ -190,6 +231,7 @@ GestureType QMI8658Impl::getGesture() {
         if (backward_hold_start_ == 0) {
             backward_hold_start_ = current_time;
             backward_hold_triggered_ = false;
+            Serial.println("[IMU] Backward tilt detected, waiting for hold...");
         } else if (!backward_hold_triggered_ && (current_time - backward_hold_start_ >= 1000)) {
             backward_hold_triggered_ = true;
             LOG_INFO("QMI8658", "Gesture: BACKWARD_HOLD (1s)");
@@ -204,6 +246,7 @@ GestureType QMI8658Impl::getGesture() {
     if (isLeftTilt()) {
         if (left_tilt_start_ == 0) {
             left_tilt_start_ = current_time;
+            Serial.println("[IMU] Left tilt detected, waiting...");
         } else if (current_time - left_tilt_start_ >= 500) {
             left_tilt_start_ = 0;
             LOG_INFO("QMI8658", "Gesture: LEFT_TILT");
@@ -217,6 +260,7 @@ GestureType QMI8658Impl::getGesture() {
     if (isRightTilt()) {
         if (right_tilt_start_ == 0) {
             right_tilt_start_ = current_time;
+            Serial.println("[IMU] Right tilt detected, waiting...");
         } else if (current_time - right_tilt_start_ >= 500) {
             right_tilt_start_ = 0;
             LOG_INFO("QMI8658", "Gesture: RIGHT_TILT");
@@ -266,7 +310,8 @@ bool QMI8658Impl::isShaking() {
     last_ay = ay_;
     last_az = az_;
     
-    if (delta_ax > 8000 || delta_ay > 8000 || delta_az > 8000) {
+    // ±8g 量程: 阈值约 2000 LSB (约 0.5g 的变化)
+    if (delta_ax > 2000 || delta_ay > 2000 || delta_az > 2000) {
         shake_counter_++;
         if (shake_counter_ > 3) {
             shake_counter_ = 0;
@@ -280,23 +325,28 @@ bool QMI8658Impl::isShaking() {
 }
 
 bool QMI8658Impl::isForwardTilt() {
-    return (ax_ < -10000);
+    // ±8g 量程: -2500 LSB 约 -0.6g (前倾)
+    return (ax_ < -2500);
 }
 
 bool QMI8658Impl::isBackwardTilt() {
-    return (ax_ > 14000);
+    // ±8g 量程: 3500 LSB 约 +0.85g (后倾)
+    return (ax_ > 3500);
 }
 
 bool QMI8658Impl::isLeftOrRightTilt() {
-    return (ay_ > 10000 || ay_ < -10000);
+    // ±8g 量程: ±2500 LSB 约 ±0.6g
+    return (ay_ > 2500 || ay_ < -2500);
 }
 
 bool QMI8658Impl::isLeftTilt() {
-    return (ay_ > 10000);
+    // ±8g 量程: 2500 LSB 约 +0.6g (左倾)
+    return (ay_ > 2500);
 }
 
 bool QMI8658Impl::isRightTilt() {
-    return (ay_ < -10000);
+    // ±8g 量程: -2500 LSB 约 -0.6g (右倾)
+    return (ay_ < -2500);
 }
 
 bool QMI8658Impl::readRegister(uint8_t reg, uint8_t* data, size_t len) {
@@ -352,10 +402,11 @@ bool QMI8658Impl::configureAccel() {
     LOG_INFO("QMI8658", "Configuring accelerometer...");
     
     // CTRL2: 加速度计配置
-    // [7:4] = ODR (1000 = 1000Hz)
-    // [3:1] = Full Scale (000 = ±2g)
-    // [0]   = 保留
-    uint8_t ctrl2 = 0x80;  // 1000Hz, ±2g
+    // [7:4] = 0011 (1000Hz ODR)
+    // [6:4] = 010 (±8g 量程)
+    // [3:0] = 0011 (1000Hz)
+    // 参考值：0x83 = 0b10000011 (±8g, 1000Hz)
+    uint8_t ctrl2 = 0x83;
     
     return writeRegister(REG_CTRL2, ctrl2);
 }
@@ -364,10 +415,11 @@ bool QMI8658Impl::configureGyro() {
     LOG_INFO("QMI8658", "Configuring gyroscope...");
     
     // CTRL3: 陀螺仪配置
-    // [7:4] = ODR (1000 = 1000Hz)
-    // [3:1] = Full Scale (001 = ±512dps)
-    // [0]   = 保留
-    uint8_t ctrl3 = 0x82;  // 1000Hz, ±512dps
+    // [7:4] = 0011 (1000Hz ODR)
+    // [6:4] = 100 (±512dps 量程)
+    // [3:0] = 0011 (1000Hz)
+    // 参考值：0x43 = 0b01000011 (±512dps, 1000Hz)
+    uint8_t ctrl3 = 0x43;
     
     return writeRegister(REG_CTRL3, ctrl3);
 }
