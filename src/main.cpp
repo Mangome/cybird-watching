@@ -207,9 +207,10 @@ void setup() {
         LOG_INFO("MAIN", "IMU driver initialized successfully");
     }
 
-    // 4. SD卡（必须在显示屏之前初始化，GUI资源在SD卡）
+    // 4. SD卡（必须在显示屏之前初始化，避免SPI冲突）
 #if ENABLE_SD_CARD
     LOG_INFO("MAIN", "Initializing SD card...");
+    delay(500);  // 关键：增加延迟确保供电稳定
     if (!HAL::SDInterface::init()) {
         LOG_ERROR("MAIN", "SD card initialization failed!");
     } else {
@@ -221,7 +222,7 @@ void setup() {
 #if ENABLE_DISPLAY
     LOG_INFO("MAIN", "Initializing display...");
     screen.init();
-    screen.setBackLight(1.0);  // 全亮
+    screen.setBackLight(0.2);  // 与backup版本一致：20%亮度
     LOG_INFO("MAIN", "Display initialized successfully");
     
     // 初始化GUI（显示logo和小鸟界面）

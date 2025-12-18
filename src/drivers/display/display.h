@@ -3,7 +3,7 @@
 
 #include <lvgl.h>
 
-#define LCD_BL_PIN 5
+// LCD_BL_PWM_CHANNEL 暂时保留，后续可能用于PWM调光
 #define LCD_BL_PWM_CHANNEL 0
 
 

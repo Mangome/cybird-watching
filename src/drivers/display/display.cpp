@@ -9,9 +9,9 @@ Replaces TFT_eSPI with same interface
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-// ESP32-S3 使用 SPI3_HOST，ESP32 使用 VSPI_HOST
+// ESP32-S3 使用 SPI2_HOST (FSPI)，ESP32 使用 VSPI_HOST
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
-  #define LGFX_SPI_HOST SPI3_HOST
+  #define LGFX_SPI_HOST SPI2_HOST
 #else
   #define LGFX_SPI_HOST VSPI_HOST
 #endif
@@ -111,8 +111,9 @@ void my_disp_flush(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 
 void Display::init()
 {
-	pinMode(LCD_BL_PIN, OUTPUT);
-	digitalWrite(LCD_BL_PIN, HIGH);
+	// 关键：先点亮背光（在TFT初始化之前）
+	pinMode(HardwareConfig::getPinTFT_BL(), OUTPUT);
+	digitalWrite(HardwareConfig::getPinTFT_BL(), HIGH);
 
 	lv_init();
 
@@ -150,8 +151,8 @@ void Display::routine()
 void Display::setBackLight(float duty)
 {
 	if (duty > 0.5) {
-		digitalWrite(LCD_BL_PIN, HIGH);
+		digitalWrite(HardwareConfig::getPinTFT_BL(), HIGH);
 	} else {
-		digitalWrite(LCD_BL_PIN, LOW);
+		digitalWrite(HardwareConfig::getPinTFT_BL(), LOW);
 	}
 }
