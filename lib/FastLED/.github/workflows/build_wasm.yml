@@ -1,0 +1,155 @@
+name: wasm
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'examples/wasm/**'
+      - 'examples/WasmScreenCoords/**'
+      - 'ci/**'
+      - '.github/workflows/**'
+      - 'CMakeLists.txt'
+      - 'platformio.ini'
+      - 'library.json'
+      - 'library.properties'
+  pull_request_target:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'examples/wasm/**'
+      - 'examples/WasmScreenCoords/**'
+      - 'ci/**'
+      - '.github/workflows/**'
+      - 'CMakeLists.txt'
+      - 'platformio.ini'
+      - 'library.json'
+      - 'library.properties'
+
+permissions:
+  contents: read        # Required to checkout code
+  actions: read         # Required for artifact operations  
+  id-token: write      # Required for artifact upload (OIDC)
+  pull-requests: read   # If needed to read PR info
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+      fail-fast: false
+    steps:
+      - name: Checkout trusted base branch code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch || 'master' }}
+          path: trusted
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: pr-code
+
+      - name: Merge safe source files from PR
+        run: |
+          # Copy ONLY safe source files from PR, never executable scripts
+          if [ -d "pr-code/src" ]; then
+            cp -r pr-code/src/* trusted/src/ 2>/dev/null || true
+          fi
+          if [ -d "pr-code/examples" ]; then
+            cp -r pr-code/examples/* trusted/examples/ 2>/dev/null || true
+          fi
+          if [ -f "pr-code/platformio.ini" ]; then
+            cp pr-code/platformio.ini trusted/
+          fi
+          if [ -f "pr-code/library.json" ]; then
+            cp pr-code/library.json trusted/
+          fi
+          if [ -f "pr-code/library.properties" ]; then
+            cp pr-code/library.properties trusted/
+          fi
+          if [ -f "pr-code/CMakeLists.txt" ]; then
+            cp pr-code/CMakeLists.txt trusted/
+          fi
+          # Change working directory to trusted for all subsequent steps
+          cd trusted
+        shell: bash
+
+      - name: Set working directory to trusted
+        run: echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE/trusted" >> $GITHUB_ENV
+
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Easter Egg! 🐇🥚
+        run: |
+          echo -e "\nHi if you are reading this then you are probably a cut above the rest."
+          echo "Therefore you are invited to test out our beta release of the Fastled Compiler!"
+          echo "Now you can compile FastLED sketch so that it runs... in the BROWSER!"
+          echo "Why would we do such a thing? BECAUSE COMPILE TIMES ARE INSANELY FAST!!!!"
+          echo "The install is just one line of code: 'pip install fastled'"
+          echo "Then run it on your favorite sketch: 'fastled mysketch'"
+          echo "Almost all of the FastLED sketches are already supported!"
+          echo "To find out more, visit the project github: https://github.com/zackees/fastled-wasm"
+          echo "Or check the demo: https://zackees.github.io/fastled-wasm/"
+          echo "Happy coding! - Zach Vorhies"
+
+      - name: Install UV for python and npm packages
+        run: |
+          pip install uv fastled
+          npm install -g live-server
+
+      - name: Verify live-server installation
+        run: |
+          which live-server || (echo "live-server not found in PATH" && exit 1)
+          live-server --version
+
+      - name: Compile fastled.js, fastled.wasm, and index.html
+        working-directory: trusted
+        run: |
+          fastled --just-compile examples/wasm
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+        shell: bash
+
+      - name: Scan for wasm/js/html artifacts
+        working-directory: trusted
+        run: |
+          find . -name "*.wasm" -o -name "*.js" -o -name "*.html"
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+
+      - name: Check for required artifacts
+        working-directory: trusted
+        run: |
+          cd examples/wasm/fastled_js
+          if [ ! -f fastled.js ] || [ ! -f fastled.wasm ] || [ ! -f index.html ]; then
+            echo "Error: One or more required files (fastled.js, fastled.wasm, index.html) are missing."
+            exit 1
+          fi
+          echo "All required files are present."
+
+      - name: Generate timestamp and random hex
+        id: generate_id
+        run: |
+          echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+          echo "random_hex=$(openssl rand -hex 3)" >> $GITHUB_OUTPUT
+
+      - name: Upload wasm artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-artifacts-${{ steps.generate_id.outputs.timestamp }}-${{ github.sha }}-${{ steps.generate_id.outputs.random_hex }}
+          path: trusted/examples/wasm/fastled_js/*.*
+          if-no-files-found: ${{ matrix.os == 'ubuntu-latest' && 'error' || 'ignore' }}
+
+      - name: Verify FastLED_onFrame with Playwrite
+        working-directory: trusted
+        run: |
+          uv run ci/wasm_test.py
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}

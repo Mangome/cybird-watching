@@ -1,3 +1,7 @@
+/// @file    Fire2012.ino
+/// @brief   Simple one-dimensional fire animation
+/// @example Fire2012.ino
+
 #include <FastLED.h>
 
 #define LED_PIN     5
@@ -12,6 +16,9 @@ bool gReverseDirection = false;
 
 CRGB leds[NUM_LEDS];
 
+// Forward declaration
+void Fire2012();
+
 void setup() {
   delay(3000); // sanity delay
   FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
@@ -21,7 +28,7 @@ void setup() {
 void loop()
 {
   // Add entropy to random number generator; we use a lot of it.
-  // random16_add_entropy( random());
+  random16_add_entropy( random16());
 
   Fire2012(); // run simulation frame
   
@@ -72,7 +79,7 @@ void loop()
 void Fire2012()
 {
 // Array of temperature readings at each simulation cell
-  static byte heat[NUM_LEDS];
+  static uint8_t heat[NUM_LEDS];
 
   // Step 1.  Cool down every cell a little
     for( int i = 0; i < NUM_LEDS; i++) {
@@ -102,4 +109,3 @@ void Fire2012()
       leds[pixelnumber] = color;
     }
 }
-

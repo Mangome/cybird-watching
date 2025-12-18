@@ -1,0 +1,298 @@
+name: Build Template
+
+on:
+  workflow_call:
+    inputs:
+      args:
+        type: string
+        required: false
+        default: ""
+      platform:
+        type: string
+        required: false
+        default: ""
+      runs-on:
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+  pull-requests: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout trusted base branch code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch || 'master' }}
+          path: trusted
+          persist-credentials: true
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: pr-code
+
+      - name: Configure Git/LFS auth for ALL github.com traffic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+              # Clean up any previous rewrites/headers so we don’t double-auth
+              git config --global --unset-all http.https://github.com/.extraheader || true
+              git config --global --unset-all url."https://".insteadof || true
+
+              # Proper Basic auth header for GitHub (LFS respects this)
+              printf "x-access-token:%s" "$GITHUB_TOKEN" | base64 -w0 > /tmp/gh.b64
+              git config --global http.https://github.com/.extraheader "AUTHORIZATION: Basic $(cat /tmp/gh.b64)"
+
+              # Ensure LFS is active on the runner (fresh VMs sometimes need this)
+              git lfs install --force
+
+              # (Optional) More robust over CI networks
+              git config --global lfs.concurrenttransfers 3
+
+      - name: Merge safe source files from PR
+        run: |
+          # Copy ONLY safe source files from PR, never executable scripts
+          if [ -d "pr-code/src" ]; then
+            cp -r pr-code/src/* trusted/src/ 2>/dev/null || true
+          fi
+          if [ -d "pr-code/examples" ]; then
+            cp -r pr-code/examples/* trusted/examples/ 2>/dev/null || true
+          fi
+          if [ -f "pr-code/platformio.ini" ]; then
+            cp pr-code/platformio.ini trusted/
+          fi
+          if [ -f "pr-code/library.json" ]; then
+            cp pr-code/library.json trusted/
+          fi
+          if [ -f "pr-code/library.properties" ]; then
+            cp pr-code/library.properties trusted/
+          fi
+          if [ -f "pr-code/CMakeLists.txt" ]; then
+            cp pr-code/CMakeLists.txt trusted/
+          fi
+          # Change working directory to trusted for all subsequent steps
+          cd trusted
+        shell: bash
+
+      - name: Set working directory to trusted
+        run: echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE/trusted" >> $GITHUB_ENV
+
+
+
+      # disabled for now.
+      #- name: Cache .build directory
+      #  uses: actions/cache@v3
+      #  with:
+      #    path: ./.build
+      #    key: ${{ runner.os }}-build-${{ hashFiles('./ci/**') }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-build-
+
+      - name: Pin python version
+        working-directory: trusted
+        run: |
+          echo "3.11" >> .python-version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+          version: "0.8.0" # 0.8.8 has problems with deployment on linux.
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "trusted/.python-version"
+
+      # CCACHE disabled - not used in this project
+      #- name: Install CCACHE
+      #  run: |
+      #    if [ "$RUNNER_OS" == "Linux" ]; then
+      #      sudo apt-get update && sudo apt-get install -y ccache
+      #    elif [ "$RUNNER_OS" == "macOS" ]; then
+      #      brew install ccache
+      #    elif [ "$RUNNER_OS" == "Windows" ]; then
+      #      choco install ccache
+      #    fi
+      #  shell: bash
+
+      #- name: Setup CCACHE
+      #  run: |
+      #    echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      #    echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> $GITHUB_ENV
+      #    echo "CCACHE_COMPRESS=true" >> $GITHUB_ENV
+      #    echo "CCACHE_COMPRESSLEVEL=6" >> $GITHUB_ENV
+      #    echo "CCACHE_MAXSIZE=400M" >> $GITHUB_ENV
+      #    ccache --version
+      #    ccache --show-stats
+      #    ccache --zero-stats
+      #  shell: bash
+
+      #- name: Cache CCACHE directory
+      #  uses: actions/cache@v4
+      #  with:
+      #    path: .ccache
+      #    key: ${{ runner.os }}-ccache-${{ github.sha }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-ccache-
+
+      - name: Install Platform
+        if: inputs.platform != ''
+        working-directory: trusted
+        run: |
+          uv run pio pkg -g install ${{ inputs.platform }}
+
+      - name: PlatformIO Versions
+        working-directory: trusted
+        run: |
+          uv run platformio --version
+
+      - name: Build FastLED examples with "./compile --no-interactive  ${{ inputs.args }}"
+        working-directory: trusted
+        run: |
+          set -o pipefail
+          ./compile --no-interactive --log-failures failures  ${{ inputs.args }} | tee build.log
+        shell: bash
+
+
+      - name: Build summary and failure logs
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          echo "############################################"
+          echo "Last 100 lines of build.log (most recent output)"
+          echo "############################################"
+          tail -n 100 build.log || true
+
+          echo ""
+          echo "############################################"
+          echo "Failure logs (if any)"
+          echo "############################################"
+          fail_dir="failures"
+          if [ -d "$fail_dir" ] && ls "$fail_dir"/*.log >/dev/null 2>&1; then
+            for f in "$fail_dir"/*.log; do
+              echo "----------------------"
+              echo "$(basename "$f")"
+              echo "----------------------"
+              # Print the failure log content
+              cat "$f"
+              echo ""
+            done
+          else
+            echo "ALL EXAMPLES SUCCESSFULLY COMPILED"
+          fi
+        shell: bash
+
+      - name: Find platformio.ini file and print it out
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          platformio_ini=$(find ./.build -type f -name platformio.ini | head -n 1)
+          if [ -f "$platformio_ini" ]; then
+            echo "Found platformio.ini at: $platformio_ini"
+            echo "############################################"
+            cat "$platformio_ini"
+            echo "############################################"
+          else
+            echo "platformio.ini not found"
+          fi
+
+      - name: Build Blink.ino for library info
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          uv run ci/ci-compile.py ${{ inputs.args }} --examples Blink
+        shell: bash
+
+      - name: Print out build_info.json
+        if: always()
+        working-directory: trusted
+        run: |
+          build_info=$(find . -name build_info.json)
+          if [ -f "$build_info" ]; then
+            cat $build_info
+          else
+            echo "build_info.json not found"
+          fi
+
+      - name: CPP Check
+        working-directory: trusted
+        run: |
+          # take the input.args and parse out the first element, which will be the board name
+          # do this to input.args
+          python -c "print('${{ inputs.args }}'.split()[0])" > board.txt
+          cat board.txt | xargs -I {} uv run ci/ci-cppcheck.py {}
+        shell: bash
+
+      - name: Check Compiled size of last compiled example
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          uv run ci/ci-check-compiled-size.py ${{ inputs.args }} --no-build
+
+      - name: Inspect Binary
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          uv run ci/inspect_binary.py --first
+
+      - name: Inspect Elf
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          uv run ci/inspect_elf.py --first
+
+      - name: Optimization Report
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          uv run ci/optimization_report.py --first
+
+      - name: Symbol Analysis
+        if: always()
+        continue-on-error: true
+        working-directory: trusted
+        run: |
+          # Parse the board name from args (first element)
+          python -c "print('${{ inputs.args }}'.split()[0])" > board.txt
+          cat board.txt | xargs -I {} uv run ci/symbol_analysis_runner.py --board {} --example Blink --skip-on-failure
+        shell: bash
+
+      - name: Generate timestamp and random hex
+        id: generate_id
+        run: |
+          echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+          echo "random_hex=$(openssl rand -hex 3)" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ steps.generate_id.outputs.timestamp }}-${{ github.sha }}-${{ steps.generate_id.outputs.random_hex }}
+          path: trusted/.build/
+          include-hidden-files: true
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ steps.generate_id.outputs.timestamp }}-${{ github.sha }}-${{ steps.generate_id.outputs.random_hex }}
+          path: trusted/build.log
+
+
+      - name: Check build status
+        if: failure()
+        run: exit 1

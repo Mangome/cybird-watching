@@ -1,0 +1,99 @@
+name: wasm_compile_test
+
+on:
+    push:
+      branches:
+        - master
+      paths:
+        - 'src/**'
+        - 'examples/wasm/**'
+        - 'examples/WasmScreenCoords/**'
+        - 'ci/**'
+        - '.github/workflows/**'
+        - 'CMakeLists.txt'
+        - 'platformio.ini'
+        - 'library.json'
+        - 'library.properties'
+    pull_request_target:
+      branches:
+        - master
+      paths:
+        - 'src/**'
+        - 'examples/wasm/**'
+        - 'examples/WasmScreenCoords/**'
+        - 'ci/**'
+        - '.github/workflows/**'
+        - 'CMakeLists.txt'
+        - 'platformio.ini'
+        - 'library.json'
+        - 'library.properties'
+
+permissions:
+  contents: read        # Required to checkout code
+  actions: read         # Required for artifact operations  
+  id-token: write      # Required for artifact upload (OIDC)
+  pull-requests: read   # If needed to read PR info
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout trusted base branch code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.repository.default_branch || 'master' }}
+        path: trusted
+
+    - name: Checkout PR code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        path: pr-code
+
+    - name: Merge safe source files from PR
+      run: |
+        # Copy ONLY safe source files from PR, never executable scripts
+        if [ -d "pr-code/src" ]; then
+          cp -r pr-code/src/* trusted/src/ 2>/dev/null || true
+        fi
+        if [ -d "pr-code/examples" ]; then
+          cp -r pr-code/examples/* trusted/examples/ 2>/dev/null || true
+        fi
+        if [ -f "pr-code/platformio.ini" ]; then
+          cp pr-code/platformio.ini trusted/
+        fi
+        if [ -f "pr-code/library.json" ]; then
+          cp pr-code/library.json trusted/
+        fi
+        if [ -f "pr-code/library.properties" ]; then
+          cp pr-code/library.properties trusted/
+        fi
+        if [ -f "pr-code/CMakeLists.txt" ]; then
+          cp pr-code/CMakeLists.txt trusted/
+        fi
+        # Change working directory to trusted for all subsequent steps
+        cd trusted
+      shell: bash
+
+    - name: Set working directory to trusted
+      run: echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE/trusted" >> $GITHUB_ENV
+
+    - name: Install UV
+      run: pip install uv
+
+    - name: uv run ci/run_test_wasm_local_compile.py
+      working-directory: trusted
+      run: uv run ci/run_test_wasm_local_compile.py
+
+    - name: Generate timestamp and random hex
+      id: generate_id
+      run: |
+        echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+        echo "random_hex=$(openssl rand -hex 3)" >> $GITHUB_OUTPUT
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wasm-artifacts-${{ steps.generate_id.outputs.timestamp }}-${{ github.sha }}-${{ steps.generate_id.outputs.random_hex }}
+        path: trusted/dist/*

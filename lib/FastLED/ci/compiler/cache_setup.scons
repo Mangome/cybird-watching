@@ -1,0 +1,514 @@
+#!/usr/bin/env python3
+"""
+Standalone cache setup script for PlatformIO builds with Python fake compilers.
+This script is executed by PlatformIO as a post-build extra_script.
+
+Configuration is passed through environment variables to avoid template string issues.
+"""
+
+# ruff: noqa: F405, F821  # Suppress SCons-specific import and undefined name warnings
+
+import json
+import os
+import shutil
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+
+# Import env and try to import projenv (SCons-specific imports)
+# These are dynamically available in PlatformIO/SCons environment
+try:
+    Import("env")  # type: ignore[name-defined]  # SCons-specific import
+    env: Any  # SCons environment object
+except NameError:
+    env = None  # For type checking when not in SCons context
+
+_VERBOSE = os.environ.get("VERBOSE", "0") in ("1", "true", "True", "yes", "y")
+
+# Try to import projenv if it exists
+has_projenv: bool = False
+projenv: Optional[Any] = None
+try:
+    Import("projenv")  # type: ignore[name-defined]  # SCons-specific import
+    # projenv is now available in scope from Import
+    has_projenv = True
+except (NameError, Exception):
+    has_projenv = False
+    projenv = None
+
+# Import cached compiler functions with type stubs
+create_cached_toolchain: Optional[Any] = None
+get_platform_packages_paths: Optional[Any] = None
+cached_compiler_available: bool = False
+
+try:
+    from ci.util.cached_compiler import (
+        create_cached_toolchain,
+        get_platform_packages_paths,
+    )
+
+    cached_compiler_available = True
+except ImportError as e:
+    print("WARNING: Could not import cached compiler module: " + str(e))
+    cached_compiler_available = False
+
+# Debug: Dump the environment state to disk for inspection
+env_dump: Dict[str, str] = {}
+try:
+    if env is not None and hasattr(env, "Dictionary"):  # type: ignore[has-type]
+        for key in env.Dictionary():  # type: ignore[union-attr]
+            try:
+                value = env[key]  # type: ignore[index]
+                # Convert to string to avoid JSON serialization issues
+                env_dump[key] = str(value)  # type: ignore[arg-type]
+            except Exception:
+                env_dump[key] = "<error getting value>"
+    else:
+        env_dump["error"] = "env not available or missing Dictionary method"
+except Exception as e:
+    env_dump["error"] = f"Failed to access env: {e}"
+
+# Write environment dump to disk
+env_dump_path = "env_dump.json"
+with open(env_dump_path, "w") as f:
+    json.dump(env_dump, f, indent=2)
+print("Environment state dumped to: " + env_dump_path)
+
+# Also dump projenv if available
+if has_projenv and projenv is not None:
+    projenv_dump: Dict[str, str] = {}
+    for key in projenv.Dictionary():  # type: ignore
+        try:
+            value = projenv[key]  # type: ignore
+            projenv_dump[key] = str(value)
+        except Exception:
+            projenv_dump[key] = "<error getting value>"
+
+    projenv_dump_path = "projenv_dump.json"
+    with open(projenv_dump_path, "w") as f:
+        json.dump(projenv_dump, f, indent=2)
+    print("Projenv state dumped to: " + projenv_dump_path)
+
+# Read cache configuration from environment variables
+cache_type = os.environ.get("FASTLED_CACHE_TYPE", "no_cache")
+cache_executable = os.environ.get("FASTLED_CACHE_EXECUTABLE", "")
+sccache_path = os.environ.get("FASTLED_SCCACHE_PATH", "")
+sccache_dir = os.environ.get("FASTLED_SCCACHE_DIR", "")
+sccache_cache_size = os.environ.get("FASTLED_SCCACHE_CACHE_SIZE", "2G")
+xcache_path = os.environ.get("FASTLED_XCACHE_PATH", "")
+debug_enabled = os.environ.get("FASTLED_CACHE_DEBUG", "0") == "1"
+
+print("Cache configuration from environment:")
+print("  Cache type: " + cache_type)
+print("  Cache executable: " + cache_executable)
+print("  SCCACHE path: " + sccache_path)
+print("  SCCACHE dir: " + sccache_dir)
+print("  Debug enabled: " + str(debug_enabled))
+
+# Set up cache environment variables for subprocess execution
+try:
+    if env is not None and hasattr(env, "Append"):  # type: ignore[has-type]
+        if sccache_dir:
+            env.Append(ENV={"SCCACHE_DIR": sccache_dir})  # type: ignore[union-attr]
+            os.environ["SCCACHE_DIR"] = sccache_dir
+
+        if sccache_cache_size:
+            env.Append(ENV={"SCCACHE_CACHE_SIZE": sccache_cache_size})  # type: ignore[union-attr]
+            os.environ["SCCACHE_CACHE_SIZE"] = sccache_cache_size
+
+        # Ensure sccache binary directory is on PATH so xcache can find it even
+        # inside ESP-IDF's virtual environments where PATH is heavily modified.
+        if sccache_path:
+            sccache_dir_path = str(Path(sccache_path).parent)
+            env.PrependENVPath("PATH", sccache_dir_path)  # type: ignore[union-attr]
+            if has_projenv and projenv is not None and hasattr(projenv, "PrependENVPath"):
+                projenv.PrependENVPath("PATH", sccache_dir_path)  # type: ignore[union-attr]
+            os.environ["PATH"] = sccache_dir_path + os.pathsep + os.environ.get("PATH", "")
+
+        if debug_enabled:
+            env.Append(ENV={"XCACHE_DEBUG": "1", "SCCACHE_DEBUG": "1"})  # type: ignore[union-attr]
+            if has_projenv and projenv is not None and hasattr(projenv, "Append"):
+                projenv.Append(ENV={"XCACHE_DEBUG": "1", "SCCACHE_DEBUG": "1"})  # type: ignore[union-attr]
+except Exception as e:
+    print(f"Warning: Failed to set up cache environment: {e}")
+
+# Check if cache is available and cached compiler system can be used
+USE_CACHE = False
+
+if cached_compiler_available and cache_executable:
+    if cache_type == "xcache":
+        # For xcache, check if the Python script exists and sccache is available
+        USE_CACHE = (
+            cache_executable
+            and xcache_path
+            and Path(xcache_path).exists()
+            and sccache_path
+            and shutil.which(sccache_path)
+        )
+
+        if USE_CACHE:
+            print("xcache wrapper detected and configured for Python fake compilers")
+            print("  xcache path: " + str(xcache_path))
+            print("  cache executable: " + str(cache_executable))
+    else:
+        # For sccache/ccache, check if executable is in PATH
+        USE_CACHE = shutil.which(cache_executable) is not None
+
+        if USE_CACHE:
+            print(
+                str(cache_type) + " detected and configured for Python cached compilers"
+            )
+            print("  cache executable: " + str(cache_executable))
+elif not cached_compiler_available:
+    print(
+        "WARNING: Python cached compiler system not available, cache will be disabled"
+    )
+else:
+    print(
+        "Cache executable not found: "
+        + str(cache_executable)
+        + ", cache will be disabled"
+    )
+
+if USE_CACHE and env is not None and hasattr(env, "get"):  # type: ignore[has-type]
+    # Get current compilers from environment
+    original_cc = env.get("CC")  # type: ignore[union-attr]
+    original_cxx = env.get("CXX")  # type: ignore[union-attr]
+
+    print("DEBUG: Found compilers in env:")
+    # Use repr for safer type conversion
+    cc_str = repr(original_cc)
+    cxx_str = repr(original_cxx)
+    cc_type_str = type(original_cc).__name__
+    cxx_type_str = type(original_cxx).__name__
+    print("  CC: " + cc_str + " (type: " + cc_type_str + ")")
+    print("  CXX: " + cxx_str + " (type: " + cxx_type_str + ")")
+
+    # Extract compiler information for fake compiler generation
+    def extract_compiler_info(compiler_env_var: Any) -> Optional[str]:
+        """Extract compiler name from environment variable value."""
+        if not compiler_env_var:
+            return None
+
+        if isinstance(compiler_env_var, list):
+            return str(compiler_env_var[0]) if compiler_env_var else None  # type: ignore[arg-type]
+        else:
+            # Handle string values like "arm-none-eabi-gcc" or "gcc"
+            return str(compiler_env_var).split()[0]  # type: ignore[arg-type]
+
+    cc_name = extract_compiler_info(original_cc) or "gcc"
+    cxx_name = extract_compiler_info(original_cxx) or "g++"
+
+    print("Extracted compiler names:")
+    print("  CC name: " + str(cc_name))
+    print("  CXX name: " + str(cxx_name))
+
+    # Create toolchain info for fake compiler generation
+    toolchain_info: Dict[str, str] = {
+        "CC": cc_name,
+        "CXX": cxx_name,
+    }
+
+    # Create cache config for fake compiler system
+    cache_config: Dict[str, str] = {
+        "CACHE_TYPE": cache_type,
+        "CACHE_EXECUTABLE": cache_executable,
+        "SCCACHE_PATH": sccache_path,
+        "SCCACHE_DIR": sccache_dir,
+        "XCACHE_PATH": xcache_path,
+    }
+
+    # Check if toolset exists and is valid
+    # Create a cache key based on the configuration to invalidate cache when config changes
+    cache_key = f"{cc_name}_{cxx_name}_{cache_type}_{cache_executable}"
+
+    # Cache in the local build directory (e.g., .build/pio/uno/)
+    cache_file = Path(current_dir) / "compiler_cache.json"
+
+    cached_tools: Optional[Dict[str, str]] = None
+
+    # Try to load from persistent cache file
+    if cache_file.exists():
+        try:
+            import json
+
+            with open(cache_file, "r") as f:
+                cache_data = json.load(f)
+
+            cached_real_cc = cache_data.get("real_cc")
+            cached_real_cxx = cache_data.get("real_cxx")
+            cached_fake_cc = cache_data.get("fake_cc")
+            cached_fake_cxx = cache_data.get("fake_cxx")
+
+            if (
+                cached_real_cc
+                and cached_real_cxx
+                and cached_fake_cc
+                and cached_fake_cxx
+            ):
+                print("Found local compiler cache:")
+                print(f"  Cache file: {cache_file}")
+                print(f"  Real CC: {cached_real_cc}")
+                print(f"  Real CXX: {cached_real_cxx}")
+
+                # Check if fake compiler scripts still exist, recreate if needed
+                fake_cc_path = Path(cached_fake_cc.replace("python ", ""))
+                fake_cxx_path = Path(cached_fake_cxx.replace("python ", ""))
+
+                if fake_cc_path.exists() and fake_cxx_path.exists():
+                    # Fast path: use existing cached compilers
+                    # On Windows, ensure we have .cmd shims to avoid 'python script.py @file'
+                    # causing Python to treat @file as the script name.
+                    import sys as _sys
+                    import os as _os
+
+                    is_win = (
+                        _os.name == "nt"
+                        or _sys.platform.startswith("win")
+                        or _sys.platform.startswith("cygwin")
+                        or _sys.platform.startswith("msys")
+                    )
+
+                    def _ensure_cmd_wrapper(fake_str: str, real_path: str) -> str:
+                        p = Path(fake_str.replace("python ", ""))
+                        if is_win and p.suffix.lower() == ".py":
+                            cmd = p.with_suffix(".cmd")
+                            if not cmd.exists():
+                                # Create missing .cmd wrapper now
+                                from ci.util.cached_compiler import create_cached_compiler_script
+                                out_dir = p.parent
+                                created = create_cached_compiler_script(
+                                    compiler_name=p.stem.split("cached_")[-1],
+                                    cache_executable=cache_config.get("CACHE_EXECUTABLE", "sccache"),
+                                    real_compiler_path=real_path,
+                                    output_dir=out_dir,
+                                    debug=debug_enabled,
+                                )
+                                cmd = Path(str(created).replace("python ", ""))
+                            if cmd.exists():
+                                return str(cmd)
+                        return fake_str
+
+                    # Create/choose proper wrapper paths
+                    new_cc = _ensure_cmd_wrapper(cached_fake_cc, cached_real_cc)
+                    new_cxx = _ensure_cmd_wrapper(cached_fake_cxx, cached_real_cxx)
+
+                    cached_tools = {"CC": new_cc, "CXX": new_cxx}
+
+                    # Update cache file if we switched to .cmd
+                    try:
+                        if new_cc != cached_fake_cc or new_cxx != cached_fake_cxx:
+                            cache_data["fake_cc"] = new_cc
+                            cache_data["fake_cxx"] = new_cxx
+                            with open(cache_file, "w") as f:
+                                json.dump(cache_data, f, indent=2)
+                    except KeyboardInterrupt as ke:
+                        import _thread
+                        _thread.interrupt_main()
+                        raise ke
+                    except Exception:
+                        pass
+                    print(
+                        "SUCCESS: Using cached compilers (instant, no platform search needed):"
+                    )
+                    print(f"  CC: {cached_tools['CC']}")
+                    print(f"  CXX: {cached_tools['CXX']}")
+                    print("  Platform search skipped - using cached toolset")
+                else:
+                    print(
+                        "Cached compiler scripts missing, recreating with cached real paths..."
+                    )
+                    # Recreate cached compilers using cached real paths (fast)
+                    cached_compilers_dir = Path(current_dir) / "cached_compilers"
+                    cached_compilers_dir.mkdir(parents=True, exist_ok=True)
+
+                    from ci.util.cached_compiler import create_cached_compiler_script
+
+                    cache_executable = cache_config.get("CACHE_EXECUTABLE", "sccache")
+
+                    # Create cached CC script using cached real path
+                    cached_cc_script = create_cached_compiler_script(
+                        compiler_name="CC",
+                        cache_executable=cache_executable,
+                        real_compiler_path=cached_real_cc,
+                        output_dir=cached_compilers_dir,
+                        debug=debug_enabled,
+                    )
+
+                    # Create cached CXX script using cached real path
+                    cached_cxx_script = create_cached_compiler_script(
+                        compiler_name="CXX",
+                        cache_executable=cache_executable,
+                        real_compiler_path=cached_real_cxx,
+                        output_dir=cached_compilers_dir,
+                        debug=debug_enabled,
+                    )
+
+                    cached_tools = {
+                        "CC": str(cached_cc_script),
+                        "CXX": str(cached_cxx_script),
+                    }
+
+                    # Update cache file with new script paths
+                    cache_data["fake_cc"] = cached_tools["CC"]
+                    cache_data["fake_cxx"] = cached_tools["CXX"]
+
+                    with open(cache_file, "w") as f:
+                        json.dump(cache_data, f, indent=2)
+
+                    print("Recreated cached compilers using cached real paths:")
+                    print(f"  CC: {cached_tools['CC']}")
+                    print(f"  CXX: {cached_tools['CXX']}")
+        except Exception as e:
+            print(f"Warning: Failed to load cache file {cache_file}: {e}")
+            # Fall through to full recreation
+
+    # If no valid cache found, create the toolset from scratch
+    if cached_tools is None:
+        print("No valid cache found, creating compiler toolset from scratch...")
+        print("  This is the first compile or configuration changed")
+
+        # Get platform packages paths for toolchain resolution (expensive operation)
+        platform_packages: List[str] = []
+        if get_platform_packages_paths is not None:
+            print("Searching platform packages (this may take ~10 seconds)...")
+            platform_packages = get_platform_packages_paths()
+            print(f"Found {len(platform_packages)} platform package directories")
+
+        if create_cached_toolchain is not None:
+            try:
+                # Find the real compiler paths (expensive operation, done only once)
+                from ci.util.cached_compiler import find_toolchain_compiler
+
+                print("Resolving real compiler paths...")
+
+                real_cc_path = find_toolchain_compiler(cc_name, platform_packages)
+                real_cxx_path = find_toolchain_compiler(cxx_name, platform_packages)
+
+                if not real_cc_path or not real_cxx_path:
+                    print(f"ERROR: Could not find real compilers:")
+                    print(f"  CC '{cc_name}': {real_cc_path}")
+                    print(f"  CXX '{cxx_name}': {real_cxx_path}")
+                    cached_tools = None
+                else:
+                    print(f"Found real compilers:")
+                    print(f"  Real CC: {real_cc_path}")
+                    print(f"  Real CXX: {real_cxx_path}")
+
+                    # Create cached compiler scripts
+                    cached_compilers_dir = Path(current_dir) / "cached_compilers"
+                    cached_compilers_dir.mkdir(parents=True, exist_ok=True)
+
+                    from ci.util.cached_compiler import create_cached_compiler_script
+
+                    cache_executable = cache_config.get("CACHE_EXECUTABLE", "sccache")
+
+                    # Create cached CC script
+                    cached_cc_script = create_cached_compiler_script(
+                        compiler_name="CC",
+                        cache_executable=cache_executable,
+                        real_compiler_path=real_cc_path,
+                        output_dir=cached_compilers_dir,
+                        debug=debug_enabled,
+                    )
+
+                    # Create cached CXX script
+                    cached_cxx_script = create_cached_compiler_script(
+                        compiler_name="CXX",
+                        cache_executable=cache_executable,
+                        real_compiler_path=real_cxx_path,
+                        output_dir=cached_compilers_dir,
+                        debug=debug_enabled,
+                    )
+
+                    cached_tools = {
+                        "CC": str(cached_cc_script),
+                        "CXX": str(cached_cxx_script),
+                    }
+
+                    print("Created new compiler toolset:")
+                    print(f"  CC: {cached_tools['CC']}")
+                    print(f"  CXX: {cached_tools['CXX']}")
+
+                    # Save to local build directory cache file
+                    cache_data = {
+                        "cache_key": cache_key,
+                        "real_cc": real_cc_path,
+                        "real_cxx": real_cxx_path,
+                        "fake_cc": cached_tools["CC"],
+                        "fake_cxx": cached_tools["CXX"],
+                        "build_dir": str(current_dir),
+                        "platform_packages_count": len(platform_packages),
+                    }
+
+                    with open(cache_file, "w") as f:
+                        json.dump(cache_data, f, indent=2)
+
+                    print(f"Saved compiler toolset to local cache: {cache_file}")
+                    print("  This cache will persist across builds for this platform")
+
+            except Exception as e:
+                print("ERROR: Toolset creation failed with exception: " + str(e))
+                import traceback
+
+                traceback.print_exc()
+                cached_tools = None
+        else:
+            print("ERROR: create_cached_toolchain function is None")
+
+    if cached_tools:
+        # Use Python cached compilers instead of batch scripts
+        new_cc = cached_tools.get("CC")
+        new_cxx = cached_tools.get("CXX")
+
+        if new_cc and new_cxx:
+            print("Created Python cached compilers:")
+            print("  CC: " + str(new_cc))
+            print("  CXX: " + str(new_cxx))
+
+            # Apply to both environments
+            env.Replace(CC=new_cc, CXX=new_cxx)  # type: ignore
+            if has_projenv and projenv is not None:
+                projenv.Replace(CC=new_cc, CXX=new_cxx)  # type: ignore
+                print("Applied Python fake compilers to both env and projenv")
+            else:
+                print("Applied Python fake compilers to env (projenv not available)")
+
+            # Apply to library builders (critical for framework caching)
+            try:
+                for lib_builder in env.GetLibBuilders():  # type: ignore
+                    lib_builder.env.Replace(CC=new_cc, CXX=new_cxx)  # type: ignore
+                    if _VERBOSE:
+                        print(
+                            "Applied Python fake compilers to library builder: "
+                            + str(getattr(lib_builder, "name", "unnamed"))
+                        )
+            except KeyboardInterrupt:
+                import _thread
+                _thread.interrupt_main()
+                raise
+            except Exception as e:
+                print("WARNING: Could not apply to library builders: " + str(e))
+
+            print("Python fake compiler cache enabled: " + str(cache_type))
+            print("  Original CC: " + str(original_cc))
+            print("  Original CXX: " + str(original_cxx))
+            print("  Fake CC: " + str(new_cc))
+            print("  Fake CXX: " + str(new_cxx))
+        else:
+            print(
+                "ERROR: Failed to create Python fake compilers, falling back to no cache"
+            )
+            USE_CACHE = False
+    else:
+        print("ERROR: Python fake compiler creation failed, falling back to no cache")
+        USE_CACHE = False
+
+if not USE_CACHE:
+    if cache_executable:
+        print("Warning: " + str(cache_type) + " setup failed; using default compilers")
+    else:
+        print("No cache executable configured; using default compilers")
+
+print("Python fake compiler cache environment configured successfully")

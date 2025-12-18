@@ -1,9 +1,13 @@
+/// @file    RGBSetDemo.ino
+/// @brief   Demonstrates how to create an LED group with CRGBArray
+/// @example RGBSetDemo.ino
+
 #include <FastLED.h>
 #define NUM_LEDS 40
 
 CRGBArray<NUM_LEDS> leds;
 
-void setup() { FastLED.addLeds<NEOPIXEL,6>(leds, NUM_LEDS); }
+void setup() { FastLED.addLeds<NEOPIXEL,2>(leds, NUM_LEDS); }
 
 void loop(){ 
   static uint8_t hue;
