@@ -215,6 +215,10 @@ void setup() {
         LOG_ERROR("MAIN", "SD card initialization failed!");
     } else {
         LOG_INFO("MAIN", String("SD card mounted: ") + HAL::SDInterface::getModeName());
+        
+        // 关键：通知LogManager SD卡已可用
+        LOG_INFO("MAIN", "Re-initializing log manager with SD card support...");
+        LogManager::getInstance()->setLogOutput(LogManager::OUTPUT_SD_CARD);
     }
 #endif
 
@@ -229,6 +233,10 @@ void setup() {
     LOG_INFO("MAIN", "Initializing GUI...");
     lv_init_gui();
     LOG_INFO("MAIN", "GUI initialized successfully");
+    
+    // 初始化串口命令系统（必须在TaskManager之前初始化）
+    LOG_INFO("MAIN", "Initializing Serial Commands...");
+    SerialCommands::getInstance()->initialize();
     
     // 初始化TaskManager（BirdWatching需要LVGL互斥锁）
     LOG_INFO("MAIN", "Initializing Task Manager...");
@@ -272,30 +280,26 @@ void setup() {
     LOG_INFO("MAIN", "========================================\n");
 }
 void loop() {
-    static unsigned long lastUpdate = 0;
-    static int counter = 0;
+    // 在双核架构下，主loop可以空闲或处理其他低优先级任务
+    // 所有核心功能已经在FreeRTOS任务中运行：
+    // - Core 0: UI Task (LVGL + Display)
+    // - Core 1: System Task (Sensors + Commands + Bird Watching)
     
-    unsigned long now = millis();
+    // 注意：串口命令处理已由SystemTask接管，不要在loop()中重复调用！
+    // 否则会导致竞态条件和命令重复执行
     
-    // 注意: UI更新已由TaskManager的UI任务接管
-    // 这里只处理非UI的系统级任务
+    // 可选：定期打印任务统计信息
+    static unsigned long lastStatsTime = 0;
+    unsigned long currentTime = millis();
     
-    // 串口命令处理（非阻塞）
-    SerialCommands* cmdHandler = SerialCommands::getInstance();
-    if (cmdHandler && cmdHandler->isEnabled()) {
-        cmdHandler->handleInput();
+    if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
+        TaskManager* taskManager = TaskManager::getInstance();
+        if (taskManager) {
+            taskManager->printTaskStats();
+        }
+        lastStatsTime = currentTime;
     }
     
-    // 每秒更新一次
-    if (now - lastUpdate >= 1000) {
-        counter++;
-        
-        // 基础心跳
-        // LOG_INFO("MAIN", String("[") + String(counter) + "] Heartbeat - Heap: " + 
-        //          String(ESP.getFreeHeap() / 1024) + " KB");
-        
-        lastUpdate = now;
-    }
-    
-    delay(10);  // 降低loop频率，主要工作由RTOS任务处理
+    // 让出CPU时间给FreeRTOS任务
+    delay(100);
 }
