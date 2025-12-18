@@ -53,9 +53,25 @@ IMU mpu;
 Pixel rgb;
 
 // ==================== 系统初始化 ====================
+
+// 早期 RGB LED 初始化（在 Serial 之前，用于调试）
+void earlyRgbInit() {
+#if ENABLE_RGB_LED
+    rgb.init();
+    rgb.flashBlue(100);  // 启动指示：快速蓝灯闪烁
+#endif
+}
+
 void setupSerial() {
     Serial.begin(115200);
-    delay(1000);  // 等待USB CDC稳定
+    
+#ifdef PLATFORM_ESP32_S3
+    // ESP32-S3: USB CDC 已禁用，使用 UART0，无需等待
+    delay(100);  // 短暂延迟确保 UART 稳定
+#else
+    // ESP32: 传统 UART，无需特殊处理
+    delay(100);
+#endif
     
     Serial.println("\n\n╔════════════════════════════════════════╗");
     Serial.println("║   Cybird Watching System Boot         ║");
@@ -106,6 +122,9 @@ void setupLogging() {
 
 // ==================== Arduino Setup ====================
 void setup() {
+    // 0. 早期 RGB LED 初始化（在 Serial 之前，用于调试指示）
+    earlyRgbInit();
+    
     // 1. 串口和日志系统
     setupSerial();
     setupLogging();
@@ -114,11 +133,8 @@ void setup() {
     LOG_INFO("MAIN", "Starting peripheral initialization...");
     LOG_INFO("MAIN", "========================================");
     
-    // 2. RGB LED（提前初始化用于调试指示）
+    // 2. RGB LED 启动指示（已在 earlyRgbInit 中初始化）
 #if ENABLE_RGB_LED
-    LOG_INFO("MAIN", "Initializing RGB LED...");
-    rgb.init();
-    
     // 启动指示：蓝灯闪 1 次（300ms 更明显）
     rgb.flashBlue(300);
     delay(300);
