@@ -60,7 +60,9 @@ class CybirdWatchingCLI:
         
         # 显示目标平台
         platform_name = "ESP32" if self.platform == "pico32" else "ESP32-S3"
-        self.console.show_info(f"目标平台: {platform_name} ({self.platform})")
+        platform_type = "调试版" if self.platform == "esp32-s3-debug" else ("发布版" if self.platform == "esp32-s3-devkitc-1" else "")
+        display_suffix = f" {platform_type}" if platform_type else ""
+        self.console.show_info(f"目标平台: {platform_name}{display_suffix} ({self.platform})")
 
         # 尝试连接设备
         await self._connect_device()
@@ -378,7 +380,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         '--platform',
-        choices=['pico32', 'esp32-s3-devkitc-1'],
+        choices=['pico32', 'esp32-s3-devkitc-1', 'esp32-s3-debug'],
         default='pico32',
         help='目标平台 (默认: pico32)'
     )
