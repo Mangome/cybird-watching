@@ -66,8 +66,9 @@ void setupSerial() {
     Serial.begin(115200);
     
 #ifdef PLATFORM_ESP32_S3
-    // ESP32-S3: USB CDC 已禁用，使用 UART0，无需等待
-    delay(100);  // 短暂延迟确保 UART 稳定
+    // ESP32-S3 USB CDC: 框架会自动处理超时（USB_CDC_BOOT_TIMEOUT）
+    // 无需手动等待
+    delay(100);
 #else
     // ESP32: 传统 UART，无需特殊处理
     delay(100);
