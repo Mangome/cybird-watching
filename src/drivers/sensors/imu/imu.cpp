@@ -1,130 +1,69 @@
 #include "imu.h"
 #include "log_manager.h"
+#include <esp_task_wdt.h>
 
 bool IMU::initialized = false;
+IMUDriver* IMU::driver_ = nullptr;
+IMUSensorType IMU::sensor_type_ = IMUSensorType::NONE;
 
 void IMU::init()
 {
-	LOG_INFO("IMU", "Starting I2C...");
-	Wire.begin(IMU_I2C_SDA, IMU_I2C_SCL);
-	Wire.setClock(100000); // Reduce clock speed for more reliable communication
-
-	LOG_INFO("IMU", "Scanning I2C bus...");
-	byte error, address;
-	int nDevices = 0;
-
-	for(address = 1; address < 127; address++) {
-		Wire.beginTransmission(address);
-		error = Wire.endTransmission();
-
-		if (error == 0) {
-			LOG_INFO("IMU", "I2C device found at address 0x" + String(address, HEX));
-			nDevices++;
-		}
-	}
-
-	if (nDevices == 0) {
-		LOG_ERROR("IMU", "No I2C devices found - MPU may not be connected");
-		initialized = false;
-		return;
+	LOG_INFO("IMU", "Starting IMU initialization...");
+	
+	// 喂狗，避免初始化超时
+	esp_task_wdt_reset();
+	
+	// 使用自动检测器检测并创建驱动
+	driver_ = IMUDetector::detectAndCreate(IMU_I2C_SDA, IMU_I2C_SCL);
+	
+	// 再次喂狗
+	esp_task_wdt_reset();
+	
+	if (driver_ != nullptr) {
+		sensor_type_ = driver_->getType();
+		initialized = true;
+		
+		const char* sensor_name = (sensor_type_ == IMUSensorType::QMI8658) ? "QMI8658" : "MPU6050";
+		LOG_INFO("IMU", String("IMU initialized successfully with ") + sensor_name);
+		
+		// 初始化手势检测状态
+		resetGestureState();
+		LOG_INFO("IMU", "Gesture detection initialized");
 	} else {
-		LOG_INFO("IMU", "Found " + String(nDevices) + " I2C device(s)");
-	}
-
-	// MPU6050 was found at 0x68, try direct I2C communication
-	LOG_INFO("IMU", "Testing direct I2C communication with MPU6050...");
-
-	// Try to read WHO_AM_I register directly via I2C
-	Wire.beginTransmission(0x68);
-	Wire.write(0x75); // WHO_AM_I register
-	Wire.endTransmission(false);
-
-	Wire.requestFrom(0x68, 1);
-	if (Wire.available()) {
-		uint8_t whoami = Wire.read();
-		Serial.printf("  MPU WHO_AM_I register: 0x%02X (expected: 0x68)\n", whoami);
-
-		if (whoami == 0x68) {
-			Serial.println("  MPU6050 communication OK, initializing manually...");
-
-			// Wake up MPU6050 and configure it
-			Serial.println("  Waking up MPU6050...");
-			Wire.beginTransmission(0x68);
-			Wire.write(0x6B); // PWR_MGMT_1 register
-			Wire.write(0x00); // Wake up
-			int result = Wire.endTransmission();
-			Serial.printf("  Wake up result: %d\n", result);
-
-			delay(100); // Wait for MPU to wake up
-
-			// Configure accelerometer
-			Serial.println("  Configuring accelerometer...");
-			Wire.beginTransmission(0x68);
-			Wire.write(0x1C); // ACCEL_CONFIG register
-			Wire.write(0x00); // ±2g range
-			result = Wire.endTransmission();
-			Serial.printf("  Accelerometer config result: %d\n", result);
-
-			Serial.println("  MPU6050 manual initialization complete");
-			initialized = true;
-
-			// 初始化手势检测状态
-			resetGestureState();
-			Serial.println("  Gesture detection initialized");
-		} else {
-			Serial.printf("  Unexpected WHO_AM_I value: 0x%02X\n", whoami);
-			initialized = false;
-		}
-	} else {
-		Serial.println("  Failed to read WHO_AM_I register");
+		LOG_ERROR("IMU", "IMU initialization failed - no sensor detected");
 		initialized = false;
+		sensor_type_ = IMUSensorType::NONE;
 	}
 }
 
 void IMU::update(int interval)
 {
-	if (!initialized) {
-		return; // Skip update if MPU is not initialized
+	if (!initialized || driver_ == nullptr) {
+		return; // Skip update if IMU is not initialized
 	}
-	Wire.beginTransmission(0x68);
-	Wire.write(0x3B); // Start from ACCEL_XOUT_H
-	int result = Wire.endTransmission(false);
-
-	if (result != 0) {
-		Serial.printf("  I2C transmission error: %d\n", result);
+	
+	// 读取传感器数据
+	IMUData data;
+	if (!driver_->readData(data)) {
+		LOG_ERROR("IMU", "Failed to read sensor data");
 		return;
 	}
-	Wire.requestFrom(0x68, 6); // Read 6 bytes for accelerometer
+	
+	// 更新内部变量（使用原始值）
+	ax = data.accel_x_raw;
+	ay = data.accel_y_raw;
+	az = data.accel_z_raw;
+	gx = data.gyro_x_raw;
+	gy = data.gyro_y_raw;
+	gz = data.gyro_z_raw;
 
-	int bytes_received = Wire.available();
-
-	if (bytes_received >= 6) {
-		uint8_t data[6];
-		for (int i = 0; i < 6; i++) {
-			data[i] = Wire.read();
-		}
-
-		int16_t ax_raw = (data[0] << 8) | data[1];
-		int16_t ay_raw = (data[2] << 8) | data[3];
-		int16_t az_raw = (data[4] << 8) | data[5];
-
-		ax = ax_raw;
-		ay = ay_raw;
-		az = az_raw;
-
-		// Simple gyroscope read (optional for basic functionality)
-		gx = 0;
-		gy = 0;
-		gz = 0;
-
-		// Debug output for MPU data - 用于调试左倾方向
-		static unsigned long last_debug_print = 0;
-		if (millis() - last_debug_print > 1000) { // 每秒打印一次
-			Serial.printf("MPU: ax=%d, ay=%d, az=%d\n", ax, ay, az);
-			last_debug_print = millis();
-		}
-	} else {
-		Serial.printf("  Failed to read MPU data, only got %d bytes\n", bytes_received);
+	// Debug output for IMU data
+	static unsigned long last_debug_print = 0;
+	if (millis() - last_debug_print > 1000) { // 每秒打印一次
+		Serial.printf("IMU (%s): ax=%d, ay=%d, az=%d\n", 
+			(sensor_type_ == IMUSensorType::QMI8658) ? "QMI8658" : "MPU6050",
+			ax, ay, az);
+		last_debug_print = millis();
 	}
 
 	if (millis() - last_update_time > interval)

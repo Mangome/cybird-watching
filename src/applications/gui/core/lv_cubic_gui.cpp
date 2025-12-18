@@ -179,6 +179,11 @@ extern "C" {
 
 void lv_init_gui(void)
 {
+	// 先创建scenes界面（包含scenes_canvas）
+	extern lv_ui guider_ui;
+	setup_ui(&guider_ui);
+	LOG_INFO("GUI", "Scenes UI created");
+	
 	// 先尝试从SD卡加载logo图片（保持黑屏状态）
 	if (load_logo_from_sd("/static/logo.bin")) {
 		LOG_INFO("GUI", "Logo loaded successfully, displaying...");

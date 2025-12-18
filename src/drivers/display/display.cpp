@@ -16,7 +16,9 @@ Replaces TFT_eSPI with same interface
   #define LGFX_SPI_HOST VSPI_HOST
 #endif
 
-// LovyanGFX 配置类 - 内联定义，与 TFT_eSPI Setup24_ST7789.h 配置一致
+// LovyanGFX 配置类 - 使用 HardwareConfig 获取引脚
+#include "config/hardware_config.h"
+
 class LGFX : public lgfx::LGFX_Device
 {
     lgfx::Panel_ST7789 _panel_instance;
@@ -25,7 +27,7 @@ class LGFX : public lgfx::LGFX_Device
 public:
     LGFX(void)
     {
-        // SPI 总线配置 - 与 TFT_eSPI 完全一致
+        // SPI 总线配置 - 从 HardwareConfig 获取引脚
         {
             auto cfg = _bus_instance.config();
             cfg.spi_host = LGFX_SPI_HOST;
@@ -35,10 +37,10 @@ public:
             cfg.spi_3wire  = true;
             cfg.use_lock   = true;
             cfg.dma_channel = SPI_DMA_CH_AUTO;
-            cfg.pin_sclk = 18;
-            cfg.pin_mosi = 23;
-            cfg.pin_miso = 19;
-            cfg.pin_dc   = 2;
+            cfg.pin_sclk = HardwareConfig::getPinTFT_SCLK();
+            cfg.pin_mosi = HardwareConfig::getPinTFT_MOSI();
+            cfg.pin_miso = HardwareConfig::getPinTFT_MISO();
+            cfg.pin_dc   = HardwareConfig::getPinTFT_DC();
             _bus_instance.config(cfg);
             _panel_instance.setBus(&_bus_instance);
         }
@@ -46,8 +48,8 @@ public:
         // Panel 配置
         {
             auto cfg = _panel_instance.config();
-            cfg.pin_cs   = -1;
-            cfg.pin_rst  = 4;
+            cfg.pin_cs   = HardwareConfig::getPinTFT_CS();
+            cfg.pin_rst  = HardwareConfig::getPinTFT_RST();
             cfg.pin_busy = -1;
             cfg.memory_width  = 240;
             cfg.memory_height = 240;

@@ -100,22 +100,22 @@ namespace ESP32Pins {
 #ifdef PLATFORM_ESP32_S3
 
 namespace ESP32S3Pins {
-    // TFT 显示 (SPI2 - 默认SPI总线)
-    constexpr int TFT_MISO      = 13;   // ESP32-S3 SPI2默认引脚
-    constexpr int TFT_MOSI      = 11;
-    constexpr int TFT_SCLK      = 12;
-    constexpr int TFT_CS        = -1;   // 不使用片选
-    constexpr int TFT_DC        = 10;   // 数据/命令选择
-    constexpr int TFT_RST       = 9;    // 复位
-    constexpr int TFT_BL        = 8;    // 背光
+    // TFT 显示 (SPI2 - 参考S3-25.4mm配置)
+    constexpr int TFT_MISO      = 13;   // SPI MISO（读取，可能未用）
+    constexpr int TFT_MOSI      = 42;   // SPI MOSI数据输出
+    constexpr int TFT_SCLK      = 41;   // SPI时钟
+    constexpr int TFT_CS        = -1;   // 不使用片选（常低）
+    constexpr int TFT_DC        = 40;   // 数据/命令选择
+    constexpr int TFT_RST       = 45;   // 复位
+    constexpr int TFT_BL        = 46;   // 背光（PWM控制）
     
-    // SD卡 SDMMC 模式（优先）
-    constexpr int SDMMC_CLK     = 36;
-    constexpr int SDMMC_CMD     = 35;
-    constexpr int SDMMC_D0      = 37;
-    constexpr int SDMMC_D1      = 38;
-    constexpr int SDMMC_D2      = 39;
-    constexpr int SDMMC_D3      = 40;
+    // SD卡 SDMMC 模式（优先）- 参考S3-25.4mm配置
+    constexpr int SDMMC_CLK     = 2;   // SD卡时钟
+    constexpr int SDMMC_CMD     = 38;  // SD卡命令
+    constexpr int SDMMC_D0      = 1;   // SD卡数据0（1-bit模式）
+    constexpr int SDMMC_D1      = -1;  // 未使用（1-bit模式）
+    constexpr int SDMMC_D2      = -1;  // 未使用
+    constexpr int SDMMC_D3      = -1;  // 未使用
     
     // SD卡 SPI 模式（回退方案）
     constexpr int SD_SCK        = 14;
@@ -124,27 +124,32 @@ namespace ESP32S3Pins {
     constexpr int SD_CS         = 17;
     
     // IMU (I2C - 兼容 MPU6050 和 QMI8658)
-    constexpr int IMU_SDA       = 1;
-    constexpr int IMU_SCL       = 2;
+    // 参考S3-25.4mm：GPIO 17=SDA, GPIO 18=SCL
+    constexpr int IMU_SDA       = 17;  // 使用参考代码引脚
+    constexpr int IMU_SCL       = 18;
     // I2C地址在运行时检测
     constexpr uint8_t MPU6050_I2C_ADDR = 0x68;
     constexpr uint8_t QMI8658_I2C_ADDR_0 = 0x6A;  // SA0=0
     constexpr uint8_t QMI8658_I2C_ADDR_1 = 0x6B;  // SA0=1
     
-    // 环境光传感器 BH1750 (I2C - 共享总线)
-    constexpr int AMB_SDA       = 1;
-    constexpr int AMB_SCL       = 2;
+    // 环境光传感器 BH1750 (I2C - 与IMU共享总线)
+    constexpr int AMB_SDA       = 17;  // 与IMU共享I2C总线
+    constexpr int AMB_SCL       = 18;
     constexpr uint8_t AMB_I2C_ADDR = 0x23;
     
-    // RGB LED (WS2812)
-    constexpr int RGB_LED_PIN   = 48;   // ESP32-S3 推荐GPIO48
+    // RGB LED (WS2812 - 参考S3-25.4mm)
+    constexpr int RGB_LED_PIN   = 39;   // 参考代码引脚
     constexpr int RGB_LED_NUM   = 2;
     
     // I2C 配置
     constexpr uint32_t I2C_FREQUENCY = 100000;  // 100kHz
     
     // SDMMC 配置
-    constexpr uint32_t SDMMC_FREQUENCY = 40000000;  // 40MHz (高速模式)
+    // 🔥 性能问题诊断：尝试不同频率
+    // - 40MHz: read_time=764ms (极慢，可能硬件不稳定)
+    // - 20MHz: read_time=764ms (仍然极慢)
+    // - 10MHz: 待测试
+    constexpr uint32_t SDMMC_FREQUENCY = 10000000;  // 10MHz (保守配置)
     
     // SPI 配置
     constexpr uint32_t SD_SPI_FREQUENCY = 25000000;  // 25MHz

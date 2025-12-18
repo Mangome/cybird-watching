@@ -1,180 +1,228 @@
+/**
+ * @file main.cpp
+ * @brief Cybird Watching 主程序 - 完整功能版本
+ * 
+ * 逐步启用外设：
+ * 1. 基础系统 (Serial/日志)
+ * 2. HAL 硬件抽象层 (IMU/SD检测)
+ * 3. 显示屏 (TFT)
+ * 4. SD卡
+ * 5. RGB LED
+ * 6. 环境光传感器
+ */
+
 #include <Arduino.h>
-#include "esp_task_wdt.h"
-#include "config/version.h"
+#include "config/hardware_config.h"
+#include "system/logging/log_manager.h"
+#include "system/tasks/task_manager.h"
+#include "system/commands/serial_commands.h"
+#include "hal/hal_manager.h"
+#include "hal/sd_interface.h"
 #include "drivers/display/display.h"
 #include "drivers/sensors/imu/imu.h"
-#include "drivers/sensors/ambient/ambient.h"
-#include "drivers/communication/network/network.h"
-#include "hal/sd_interface.h"
 #include "drivers/io/rgb_led/rgb_led.h"
-#include "system/lvgl/ports/lv_port_indev.h"
-#include "system/lvgl/ports/lv_port_fatfs.h"
-#include "applications/gui/core/lv_cubic_gui.h"
-#include "applications/gui/core/gui_guider.h"
-#include "system/logging/log_manager.h"
-#include "system/commands/serial_commands.h"
 #include "applications/modules/bird_watching/core/bird_watching.h"
-#include "system/tasks/task_manager.h"
+#include "applications/gui/core/gui_guider.h"  // 定义 lv_ui 类型
 
-/*** Component objects ***/
+#ifdef __cplusplus
+extern "C" {
+#endif
+    void lv_init_gui(void);          // GUI初始化（显示logo和小鸟）
+    void lv_check_logo_timeout(void); // logo超时检查
+#ifdef __cplusplus
+}
+#endif
+
+// ==================== 功能开关 ====================
+#define ENABLE_HAL              1   // 硬件抽象层 (IMU/SD检测)
+#define ENABLE_DISPLAY          1   // TFT显示屏
+#define ENABLE_SD_CARD          1   // SD卡（GUI资源需要）
+#define ENABLE_RGB_LED          0   // RGB LED（暂时禁用）
+#define ENABLE_AMBIENT_SENSOR   0   // 环境光传感器（暂时禁用）
+
+// ==================== 全局对象 ====================
+HAL::HALManager& hal = HAL::HALManager::getInstance();
+
+// Display对象（TaskManager需要名为screen的全局对象）
 Display screen;
+
+// IMU对象（TaskManager需要）
 IMU mpu;
+
+// RGB LED对象（BirdManager需要）
 Pixel rgb;
-Network wifi;
 
-lv_ui guider_ui;
-
-/*** Task Manager ***/
-TaskManager* taskManager = nullptr;
-
-void setup()
-{
-    // 配置看门狗超时时间为10秒（避免图像加载时触发看门狗）
-    esp_task_wdt_init(10, true);
-    // 初始化串口通信
+// ==================== 系统初始化 ====================
+void setupSerial() {
     Serial.begin(115200);
-    delay(1000); // 等待串口稳定
-
-    // 立即输出标识，不依赖日志系统
-    Serial.println("=== CybirdWatching Starting ===");
-    Serial.println(FIRMWARE_BANNER);
-    Serial.println("Core 0: UI Rendering | Core 1: System Logic");
-    delay(1000);
-
-    // 初始化日志系统 - 先只用串口输出，等SD卡初始化完成后再启用SD卡
-    LogManager* logManager = LogManager::getInstance();
-    logManager->initialize(LogManager::LM_LOG_INFO, LogManager::OUTPUT_SERIAL);
-
-    LOG_INFO("MAIN", "=== CybirdWatching Starting ===");
-    LOG_INFO("MAIN", FIRMWARE_BANNER);
-    delay(1000);
-    LOG_INFO("MAIN", "Serial communication OK");
-
-    // 初始化串口命令系统
-    SerialCommands* serialCommands = SerialCommands::getInstance();
-    serialCommands->initialize();
-
-    /*** Init micro SD-Card EARLY (before screen to avoid SPI conflicts) ***/
-    LOG_INFO("MAIN", "Initializing SD card...");
-    // 在烧录后添加额外延迟，让硬件稳定
-    delay(500);  // 增加延迟确保供电稳定
+    delay(1000);  // 等待USB CDC稳定
     
+    Serial.println("\n\n╔════════════════════════════════════════╗");
+    Serial.println("║   Cybird Watching System Boot         ║");
+    Serial.println("╠════════════════════════════════════════╣");
+    Serial.print("║ Platform:    ");
+    Serial.print(HardwareConfig::getPlatformName());
+    for(int i = strlen(HardwareConfig::getPlatformName()); i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.print("║ Chip Model:  ");
+    Serial.print(ESP.getChipModel());
+    Serial.print(" Rev ");
+    Serial.print(ESP.getChipRevision());
+    for(int i = strlen(ESP.getChipModel()) + 6; i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.print("║ CPU Freq:    ");
+    Serial.print(ESP.getCpuFreqMHz());
+    Serial.print(" MHz");
+    for(int i = String(ESP.getCpuFreqMHz()).length() + 4; i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.print("║ Flash:       ");
+    Serial.print(ESP.getFlashChipSize() / (1024 * 1024));
+    Serial.print(" MB");
+    for(int i = String(ESP.getFlashChipSize() / (1024 * 1024)).length() + 3; i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.print("║ PSRAM:       ");
+    Serial.print(ESP.getPsramSize() / (1024 * 1024));
+    Serial.print(" MB");
+    for(int i = String(ESP.getPsramSize() / (1024 * 1024)).length() + 3; i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.print("║ Free Heap:   ");
+    Serial.print(ESP.getFreeHeap() / 1024);
+    Serial.print(" KB");
+    for(int i = String(ESP.getFreeHeap() / 1024).length() + 3; i < 25; i++) Serial.print(" ");
+    Serial.println("║");
+    
+    Serial.println("╚════════════════════════════════════════╝\n");
+}
+
+void setupLogging() {
+    LogManager::getInstance()->setLogLevel(LogManager::LM_LOG_DEBUG);
+    LOG_INFO("MAIN", "Log system initialized");
+}
+
+// ==================== Arduino Setup ====================
+void setup() {
+    // 1. 串口和日志系统
+    setupSerial();
+    setupLogging();
+    
+    LOG_INFO("MAIN", "========================================");
+    LOG_INFO("MAIN", "Starting peripheral initialization...");
+    LOG_INFO("MAIN", "========================================");
+    
+    // 2. HAL 硬件抽象层
+#if ENABLE_HAL
+    LOG_INFO("MAIN", "Initializing HAL...");
+    if (!hal.initialize()) {
+        LOG_ERROR("MAIN", "HAL initialization failed!");
+    } else {
+        LOG_INFO("MAIN", "HAL initialization successful");
+        
+        // 测试IMU读取
+        HAL::IMUInterface* imu = hal.getIMU();
+        if (imu != nullptr) {
+            imu->update(10);
+            int16_t ax = imu->getAccelX();
+            int16_t ay = imu->getAccelY();
+            int16_t az = imu->getAccelZ();
+            LOG_INFO("MAIN", String("IMU Test - Accel: ") + 
+                     String(ax) + ", " + String(ay) + ", " + String(az));
+        }
+    }
+#endif
+
+    // 3. SD卡（必须在显示屏之前初始化，GUI资源在SD卡）
+#if ENABLE_SD_CARD
+    LOG_INFO("MAIN", "Initializing SD card...");
     if (!HAL::SDInterface::init()) {
         LOG_ERROR("MAIN", "SD card initialization failed!");
     } else {
-        LOG_INFO("MAIN", "SD card mounted in " + String(HAL::SDInterface::getModeName()) + " mode");
+        LOG_INFO("MAIN", String("SD card mounted: ") + HAL::SDInterface::getModeName());
     }
+#endif
 
-    // 通知LogManager SD卡已初始化
-    LOG_INFO("MAIN", "Re-initializing log manager with SD card support...");
-    // Use SD card only to keep CLI responses clean
-    // Use 'log cat' command to view full log when needed
-    logManager->setLogOutput(LogManager::OUTPUT_SD_CARD);
-
-    /*** Init screen ***/
-    LOG_INFO("MAIN", "Initializing screen...");
+    // 4. 显示屏和GUI
+#if ENABLE_DISPLAY
+    LOG_INFO("MAIN", "Initializing display...");
     screen.init();
-    LOG_INFO("MAIN", "Screen initialized");
-
-    LOG_INFO("MAIN", "Setting backlight...");
-    screen.setBackLight(0.2);
-    LOG_INFO("MAIN", "Backlight set");
-
-    /*** Init LVGL file system ***/
-    LOG_INFO("MAIN", "Initializing LVGL file system...");
-    lv_fs_if_init();
-    LOG_INFO("MAIN", "LVGL file system initialized");
-
-    /*** Init IMU as input device ***/
-    LOG_INFO("MAIN", "Initializing LVGL input device...");
-    lv_port_indev_init();
-    LOG_INFO("MAIN", "LVGL input device initialized");
-
-    LOG_INFO("MAIN", "Initializing MPU...");
-    mpu.init();
-    LOG_INFO("MAIN", "MPU initialized");
-
-    /*** Init on-board RGB ***/
-    LOG_INFO("MAIN", "Initializing RGB LED...");
-    rgb.init();
-    LOG_INFO("MAIN", "RGB LED initialized (default: OFF)");
-
-    // LOG_INFO("MAIN", "Reading WiFi configuration...");
-    // String ssid = HAL::SDInterface::readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid
-    // String password = HAL::SDInterface::readFileLine("/wifi.txt", 2);    // line-2 for WiFi password
-    // LOG_INFO("MAIN", "WiFi configuration read");
-
-    /*** Inflate GUI objects ***/
-    LOG_INFO("MAIN", "Creating GUI...");
-    setup_ui(&guider_ui);  // 创建UI界面(包括scenes)
-    LOG_INFO("MAIN", "GUI UI created");
-
-    /*** Init Task Manager FIRST (creates LVGL mutex) ***/
-    LOG_INFO("MAIN", "Initializing Task Manager...");
-    taskManager = TaskManager::getInstance();
+    screen.setBackLight(1.0);  // 全亮
+    LOG_INFO("MAIN", "Display initialized successfully");
     
-    if (!taskManager->initialize()) {
-        LOG_ERROR("MAIN", "Failed to initialize Task Manager");
-        return;
+    // 初始化GUI（显示logo和小鸟界面）
+    LOG_INFO("MAIN", "Initializing GUI...");
+    lv_init_gui();
+    LOG_INFO("MAIN", "GUI initialized successfully");
+    
+    // 初始化TaskManager（BirdWatching需要LVGL互斥锁）
+    LOG_INFO("MAIN", "Initializing Task Manager...");
+    TaskManager* taskMgr = TaskManager::getInstance();
+    if (!taskMgr->initialize()) {
+        LOG_ERROR("MAIN", "Task Manager initialization failed!");
+    } else {
+        LOG_INFO("MAIN", "Task Manager initialized successfully");
+        
+        // 启动UI和System任务
+        if (!taskMgr->startTasks()) {
+            LOG_ERROR("MAIN", "Failed to start tasks!");
+        } else {
+            LOG_INFO("MAIN", "Tasks started successfully");
+        }
     }
-    LOG_INFO("MAIN", "Task Manager initialized (LVGL mutex created)");
-
-    /*** Start Dual-Core Tasks EARLY ***/
-    LOG_INFO("MAIN", "Starting dual-core tasks...");
-
-    if (!taskManager->startTasks()) {
-        LOG_ERROR("MAIN", "Failed to start tasks");
-        return;
-    }
-    LOG_INFO("MAIN", "Dual-core tasks started successfully");
-    LOG_INFO("MAIN", "  - Core 0: UI Task (LVGL + Display + Animation)");
-    LOG_INFO("MAIN", "  - Core 1: System Task (Sensors + Commands + Business Logic)");
-
-    // ⚠️ 重要：先加载并显示logo（在扫描资源之前）
-    LOG_INFO("MAIN", "Loading and displaying logo...");
-    lv_init_gui();  // 尝试加载logo(如果SD卡可用),否则显示小鸟界面
-    LOG_INFO("MAIN", "Logo displayed, starting to scan bird resources...");
-
-    /*** Init Bird Watching System (扫描小鸟资源期间logo持续显示) ***/
-    LOG_INFO("MAIN", "Initializing Bird Watching System (scanning bird resources)...");
-    // 传入scenes给BirdManager作为显示对象（统计界面的父对象）
-    if (BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
+    
+    // 初始化小鸟系统（会扫描资源并自动隐藏logo）
+    LOG_INFO("MAIN", "Initializing Bird Watching System...");
+    if (BirdWatching::initializeBirdWatching(guider_ui.scenes_canvas)) {
         LOG_INFO("MAIN", "Bird Watching System initialized successfully");
     } else {
-        LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
+        LOG_ERROR("MAIN", "Bird Watching System initialization failed!");
     }
-    LOG_INFO("MAIN", "Bird resources scan completed");
-    
-    // 扫描完成后立即关闭logo，显示小鸟界面
-    LOG_INFO("MAIN", "Closing logo after resource scan...");
-    lv_hide_logo();
-    LOG_INFO("MAIN", "Logo closed, bird interface ready");
+#endif
 
-    LOG_INFO("MAIN", "Setup completed, tasks running...");
-    
-    // 打印任务统计信息
-    delay(2000);
-    taskManager->printTaskStats();
+    // 5. RGB LED
+#if ENABLE_RGB_LED
+    LOG_INFO("MAIN", "Initializing RGB LED...");
+    // TODO: 添加RGB LED初始化
+#endif
+
+    // 6. 环境光传感器
+#if ENABLE_AMBIENT_SENSOR
+    LOG_INFO("MAIN", "Initializing ambient light sensor...");
+    // TODO: 添加环境光传感器初始化
+#endif
+
+    LOG_INFO("MAIN", "========================================");
+    LOG_INFO("MAIN", "System initialization complete!");
+    LOG_INFO("MAIN", "========================================\n");
 }
-
-void loop()
-{
-    // 在双核架构下，主loop可以空闲或处理其他低优先级任务
-    // 所有核心功能已经在FreeRTOS任务中运行：
-    // - Core 0: UI Task (200Hz - LVGL + Display)
-    // - Core 1: System Task (100Hz - Sensors + Commands + Business Logic)
+void loop() {
+    static unsigned long lastUpdate = 0;
+    static int counter = 0;
     
-    // 可选：定期打印任务统计信息
-    static unsigned long lastStatsTime = 0;
-    unsigned long currentTime = millis();
+    unsigned long now = millis();
     
-    if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
-        if (taskManager) {
-            taskManager->printTaskStats();
-        }
-        lastStatsTime = currentTime;
+    // 注意: UI更新已由TaskManager的UI任务接管
+    // 这里只处理非UI的系统级任务
+    
+    // 串口命令处理（非阻塞）
+    SerialCommands* cmdHandler = SerialCommands::getInstance();
+    if (cmdHandler && cmdHandler->isEnabled()) {
+        cmdHandler->handleInput();
     }
     
-    // 让出CPU给FreeRTOS调度器
-    delay(1000);
+    // 每秒更新一次
+    if (now - lastUpdate >= 1000) {
+        counter++;
+        
+        // 基础心跳
+        // LOG_INFO("MAIN", String("[") + String(counter) + "] Heartbeat - Heap: " + 
+        //          String(ESP.getFreeHeap() / 1024) + " KB");
+        
+        lastUpdate = now;
+    }
+    
+    delay(10);  // 降低loop频率，主要工作由RTOS任务处理
 }

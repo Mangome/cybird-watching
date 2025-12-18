@@ -96,6 +96,7 @@ private:
     std::vector<FrameIndexEntry> index_table_;
     std::string bundle_path_;
     bool is_loaded_;
+    File bundle_file_;  // 保持文件打开以提升性能
 
     /**
      * 验证bundle文件头部

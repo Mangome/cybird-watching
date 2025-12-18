@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "gui_guider.h"
 
+// 定义全局UI对象
+lv_ui guider_ui;
 
 void setup_ui(lv_ui* ui)
 {

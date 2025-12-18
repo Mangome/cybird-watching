@@ -134,7 +134,7 @@ bool BirdStatistics::saveToFile() {
         return false;
     }
 
-    LOG_INFO("BIRD", (String("Statistics saved to ") + data_file_.c_str()).c_str());
+    // LOG_INFO("BIRD", (String("Statistics saved to ") + data_file_.c_str()).c_str());
     return true;
 }
 

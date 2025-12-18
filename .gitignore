@@ -4,3 +4,4 @@ cmake-build-*/
 */__pycache__/
 
 .vscode/
+.codebuddy/plans/esp32-s3-hardware-compatibility_0e00c031.md

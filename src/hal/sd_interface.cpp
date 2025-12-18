@@ -54,13 +54,9 @@ bool SDInterface::init(HardwareConfig::SDCardMode mode)
     // 否则自动选择最佳模式
     else {
 #ifdef PLATFORM_ESP32_S3
-        // ESP32-S3: 优先尝试 SDMMC，失败后回退到 SPI
-        LOG_INFO("SD", "ESP32-S3 detected, trying SDMMC mode first...");
+        // ESP32-S3: 仅支持SDMMC模式（硬件无SPI引脚）
+        LOG_INFO("SD", "ESP32-S3 detected, using SDMMC mode...");
         success = initSDMMC();
-        if (!success) {
-            LOG_WARN("SD", "SDMMC init failed, falling back to SPI mode");
-            success = initSPI();
-        }
 #else
         // ESP32: 仅支持 SPI
         LOG_INFO("SD", "ESP32 detected, using SPI mode");
@@ -92,13 +88,11 @@ bool SDInterface::initSDMMC()
     // 硬件复位
     hardwareReset();
     
-    // 配置 SDMMC 引脚（1-bit 模式，更稳定）
-    // CLK=36, CMD=35, D0=37
+    // 配置 SDMMC 引脚（1-bit 模式）
     bool success = SD_MMC.setPins(
         HardwareConfig::ESP32S3Pins::SDMMC_CLK,   // CLK
         HardwareConfig::ESP32S3Pins::SDMMC_CMD,   // CMD
         HardwareConfig::ESP32S3Pins::SDMMC_D0     // D0
-        // 不使用 D1/D2/D3（1-bit 模式）
     );
     
     if (!success) {
@@ -108,12 +102,19 @@ bool SDInterface::initSDMMC()
     
     delay(100);
     
-    // 尝试挂载（1-bit 模式，40MHz）
-    success = SD_MMC.begin("/sdcard", true, false, HardwareConfig::ESP32S3Pins::SDMMC_FREQUENCY / 1000000);
+    // 使用 SDMMC_FREQ_DEFAULT 让驱动自动选择合适频率
+    // ESP32-S3: 通常为20MHz（40MHz在S3上有稳定性问题）
+    LOG_INFO("SD", "Attempting SDMMC with default frequency (1-bit mode)...");
+    
+    success = SD_MMC.begin("/sdcard", true, false, SDMMC_FREQ_DEFAULT);
     
     if (success) {
         current_mode_ = HardwareConfig::SDCardMode::SDMMC;
-        LOG_INFO("SD", "SDMMC initialized at " + String(HardwareConfig::ESP32S3Pins::SDMMC_FREQUENCY / 1000000) + "MHz");
+        
+        uint8_t cardType = SD_MMC.cardType();
+        String typeStr = (cardType == CARD_SD) ? "SDSC" : (cardType == CARD_SDHC) ? "SDHC" : "Unknown";
+        
+        LOG_INFO("SD", "SDMMC initialized - Card: " + typeStr);
         return true;
     } else {
         LOG_ERROR("SD", "SDMMC mount failed");

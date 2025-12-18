@@ -61,6 +61,13 @@ bool BirdBundleLoader::loadBundle(const std::string& bundle_path) {
 
     file.close();
 
+    // 重新打开文件并保持句柄以提升性能
+    fs::FS& fs_reopen = HAL::SDInterface::getFS();
+    bundle_file_ = fs_reopen.open(bundle_path.c_str());
+    if (!bundle_file_) {
+        LOG_WARN("BUNDLE", "Failed to keep bundle file open");
+    }
+
     is_loaded_ = true;
     LOG_INFO("BUNDLE", "Bundle loaded: " + String(header_.frame_count) + " frames, " +
              String(header_.frame_width) + "x" + String(header_.frame_height));
@@ -88,31 +95,38 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
     // 获取帧索引信息
     const FrameIndexEntry& entry = index_table_[frame_index];
 
-
-    // 打开bundle文件
-    fs::FS& fs = HAL::SDInterface::getFS();
-    File file = fs.open(bundle_path_.c_str());
-    if (!file) {
-        LOG_ERROR("BUNDLE", "Failed to open bundle for frame reading");
-        return false;
+    // 优先使用保持打开的文件句柄，如果无效则重新打开
+    File* file_ptr = nullptr;
+    File temp_file;
+    
+    if (bundle_file_ && bundle_file_.available()) {
+        file_ptr = &bundle_file_;
+    } else {
+        fs::FS& fs = HAL::SDInterface::getFS();
+        temp_file = fs.open(bundle_path_.c_str());
+        if (!temp_file) {
+            LOG_ERROR("BUNDLE", "Failed to open bundle for frame reading");
+            return false;
+        }
+        file_ptr = &temp_file;
     }
 
     // 定位到帧数据位置
-    file.seek(entry.offset);
+    file_ptr->seek(entry.offset);
 
     // 读取LVGL 9.x头部 (32字节)
     uint32_t header_cf, flags, stride, reserved_2, data_size;
     uint16_t width, height;
 
-    if (file.read((uint8_t*)&header_cf, 4) != 4 ||
-        file.read((uint8_t*)&flags, 4) != 4 ||
-        file.read((uint8_t*)&width, 2) != 2 ||
-        file.read((uint8_t*)&height, 2) != 2 ||
-        file.read((uint8_t*)&stride, 4) != 4 ||
-        file.read((uint8_t*)&reserved_2, 4) != 4 ||
-        file.read((uint8_t*)&data_size, 4) != 4) {
+    if (file_ptr->read((uint8_t*)&header_cf, 4) != 4 ||
+        file_ptr->read((uint8_t*)&flags, 4) != 4 ||
+        file_ptr->read((uint8_t*)&width, 2) != 2 ||
+        file_ptr->read((uint8_t*)&height, 2) != 2 ||
+        file_ptr->read((uint8_t*)&stride, 4) != 4 ||
+        file_ptr->read((uint8_t*)&reserved_2, 4) != 4 ||
+        file_ptr->read((uint8_t*)&data_size, 4) != 4) {
         LOG_ERROR("BUNDLE", "Failed to read LVGL header for frame " + String(frame_index));
-        file.close();
+        if (file_ptr == &temp_file) temp_file.close();
         return false;
     }
 
@@ -123,7 +137,7 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
     if (color_format != RGB565_COLOR_FORMAT || magic != 0x37) {
         LOG_ERROR("BUNDLE", "Invalid LVGL format in frame " + String(frame_index) +
                   ": cf=0x" + String(color_format, HEX) + ", magic=0x" + String(magic, HEX));
-        file.close();
+        if (file_ptr == &temp_file) temp_file.close();
         return false;
     }
 
@@ -132,7 +146,7 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
     if (free_heap < data_size + 4096) {
         LOG_ERROR("BUNDLE", "Insufficient memory - need " + String(data_size) +
                   " + 4096, have " + String(free_heap));
-        file.close();
+        if (file_ptr == &temp_file) temp_file.close();
         return false;
     }
 
@@ -144,16 +158,17 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
         LOG_ERROR("BUNDLE", "Failed to allocate memory for frame " + String(frame_index));
         if (img_dsc) free(img_dsc);
         if (img_data) free(img_data);
-        file.close();
+        if (file_ptr == &temp_file) temp_file.close();
         return false;
     }
 
     // 读取像素数据
-    size_t bytes_read = file.read(img_data, data_size);
-    file.close();
-
-    // 让出CPU，避免看门狗超时
-    vTaskDelay(1);
+    size_t bytes_read = file_ptr->read(img_data, data_size);
+    
+    // 如果使用的是临时文件，关闭它
+    if (file_ptr == &temp_file) {
+        temp_file.close();
+    }
 
     if (bytes_read != data_size) {
         LOG_ERROR("BUNDLE", "Failed to read pixel data: " + String(bytes_read) +
@@ -181,6 +196,9 @@ bool BirdBundleLoader::loadFrame(uint16_t frame_index, lv_image_dsc_t** out_dsc,
 }
 
 void BirdBundleLoader::close() {
+    if (bundle_file_) {
+        bundle_file_.close();
+    }
     if (is_loaded_) {
         index_table_.clear();
         bundle_path_.clear();

@@ -445,6 +445,9 @@ void BirdManager::loadInitialBird() {
     }
 
     first_bird_loaded_ = true;
+    
+    // 注意: 不在这里调用lv_hide_logo()，因为此时可能没有LVGL互斥锁
+    // UI任务会在检测到动画播放时自动隐藏logo
 }
 
 void BirdManager::updateGestureDetection() {
@@ -481,7 +484,7 @@ void BirdManager::saveStatisticsIfNeeded() {
     if (time_since_last_save >= 10000) {
         if (statistics_->saveToFile()) {
             last_stats_save_time_ = current_time;
-            LOG_DEBUG("BIRD", "Statistics saved automatically");
+            // LOG_DEBUG("BIRD", "Statistics saved automatically");
         }
     }
 }
