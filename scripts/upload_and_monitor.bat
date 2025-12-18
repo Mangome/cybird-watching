@@ -16,13 +16,14 @@ if "%choice%"=="1" (
     set ENV=pico32
 )
 
-REM 读取platformio.ini配置
-call "%~dp0read_platformio.bat"
+echo.
+echo 编译环境: %ENV%
+
+REM 读取platformio.ini配置（传递平台参数）
+call "%~dp0read_platformio.bat" %ENV%
 if "%COM_PORT%"=="" set "COM_PORT=COM8"
 if "%BAUD_RATE%"=="" set "BAUD_RATE=115200"
 
-echo.
-echo 编译环境: %ENV%
 echo 串口: %COM_PORT%
 echo 波特率: %BAUD_RATE%
 echo.

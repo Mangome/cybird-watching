@@ -43,6 +43,9 @@ class CybirdWatchingCLI:
                 config.serial.port = self.cli_args['port']
             if self.cli_args.get('baudrate'):
                 config.serial.baudrate = self.cli_args['baudrate']
+            
+            # 保存平台信息（暂时不使用，但保留以备将来扩展）
+            self.platform = self.cli_args.get('platform', 'pico32')
 
             return config
 
@@ -54,6 +57,10 @@ class CybirdWatchingCLI:
         """运行交互式模式"""
         self.running = True
         self.console.show_welcome()
+        
+        # 显示目标平台
+        platform_name = "ESP32" if self.platform == "pico32" else "ESP32-S3"
+        self.console.show_info(f"目标平台: {platform_name} ({self.platform})")
 
         # 尝试连接设备
         await self._connect_device()
@@ -370,6 +377,13 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        '--platform',
+        choices=['pico32', 'esp32-s3-devkitc-1'],
+        default='pico32',
+        help='目标平台 (默认: pico32)'
+    )
+
+    parser.add_argument(
         '--version', '-v',
         action='version',
         version='CybirdWatching CLI v1.0.0'
@@ -392,7 +406,8 @@ async def main():
     # 创建CLI实例
     cli = CybirdWatchingCLI({
         'port': args.port,
-        'baudrate': args.baudrate
+        'baudrate': args.baudrate,
+        'platform': args.platform
     })
 
     try:
