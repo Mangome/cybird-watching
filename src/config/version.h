@@ -10,12 +10,12 @@
 
 // 固件版本号 (语义化版本)
 #define FIRMWARE_VERSION_MAJOR 1
-#define FIRMWARE_VERSION_MINOR 0
+#define FIRMWARE_VERSION_MINOR 1
 #define FIRMWARE_VERSION_PATCH 0
 
 // 版本字符串
-#define FIRMWARE_VERSION "1.0.0"
-#define FIRMWARE_VERSION_FULL "v1.0.0"
+#define FIRMWARE_VERSION "1.1.0"
+#define FIRMWARE_VERSION_FULL "v1.1.0"
 
 // 构建信息
 #define FIRMWARE_NAME "CybirdWatching"
