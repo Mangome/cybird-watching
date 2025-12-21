@@ -3,7 +3,7 @@
  *********************/
 #include "lv_cubic_gui.h"
 #include "Arduino.h"
-#include "SD.h"
+#include "hal/sd_interface.h"
 #include "system/logging/log_manager.h"
 #include "config/version.h"
 #include "config/ui_texts.h"
@@ -82,7 +82,8 @@ static void hideLogo()
 // 从SD卡手动加载logo图片
 static bool load_logo_from_sd(const char* file_path)
 {
-	File file = SD.open(file_path);
+	fs::FS& fs = HAL::SDInterface::getFS();
+	File file = fs.open(file_path);
 	if (!file) {
 		LOG_ERROR("GUI", "Failed to open logo file: " + String(file_path));
 		return false;
@@ -178,6 +179,11 @@ extern "C" {
 
 void lv_init_gui(void)
 {
+	// 先创建scenes界面（包含scenes_canvas）
+	extern lv_ui guider_ui;
+	setup_ui(&guider_ui);
+	LOG_INFO("GUI", "Scenes UI created");
+	
 	// 先尝试从SD卡加载logo图片（保持黑屏状态）
 	if (load_logo_from_sd("/static/logo.bin")) {
 		LOG_INFO("GUI", "Logo loaded successfully, displaying...");

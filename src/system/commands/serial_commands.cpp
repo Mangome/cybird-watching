@@ -178,10 +178,11 @@ void SerialCommands::handleLogCommand(const String& param) {
         } else {
             // 直接打开日志文件顺序读取
             String logFilePath = "/logs/cybird_watching.log";
-            if (!SD.exists(logFilePath)) {
+            if (!HAL::SDInterface::exists(logFilePath.c_str())) {
                 Serial.println("No log file found");
             } else {
-                File logFile = SD.open(logFilePath, FILE_READ);
+                fs::FS& fs = HAL::SDInterface::getFS();
+                File logFile = fs.open(logFilePath, FILE_READ);
                 if (!logFile) {
                     Serial.println("Failed to open log file");
                 } else {
@@ -316,8 +317,9 @@ void SerialCommands::handleTreeCommand(const String& param) {
         return;
     }
 
-    // 调用SD卡类的树状显示方法
-    tf.treeDir(path.c_str(), levels, "");
+
+    // 调用 HAL::SDInterface 的树状显示方法
+    HAL::SDInterface::treeDir(path.c_str(), levels, "");
 
     Serial.println("\n=== End of Tree ===");
     Serial.println("<<<RESPONSE_END>>>");
@@ -578,7 +580,8 @@ void SerialCommands::handleFileUpload(const String& path) {
     int lastSlash = dirPath.lastIndexOf('/');
     if (lastSlash > 0) {
         dirPath = dirPath.substring(0, lastSlash);
-        if (!SD.exists(dirPath)) {
+        fs::FS& fs = HAL::SDInterface::getFS();
+        if (!fs.exists(dirPath)) {
             // 创建目录结构
             String currentPath = "";
             int start = 1; // 跳过开头的 '/'
@@ -587,8 +590,8 @@ void SerialCommands::handleFileUpload(const String& path) {
                 if (nextSlash == -1) nextSlash = dirPath.length();
                 
                 currentPath += "/" + dirPath.substring(start, nextSlash);
-                if (!SD.exists(currentPath)) {
-                    if (!SD.mkdir(currentPath)) {
+                if (!fs.exists(currentPath)) {
+                    if (!fs.mkdir(currentPath)) {
                         Serial.println("ERROR: Failed to create directory: " + currentPath);
                         return;
                     }
@@ -627,7 +630,8 @@ void SerialCommands::handleFileUpload(const String& path) {
     }
 
     // 打开文件准备写入
-    File file = SD.open(path, FILE_WRITE);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(path, FILE_WRITE);
     if (!file) {
         Serial.println("ERROR: Failed to create file: " + path);
         return;
@@ -689,7 +693,7 @@ void SerialCommands::handleFileUpload(const String& path) {
         Serial.printf("Size: %u bytes\n", totalWritten);
     } else {
         Serial.println("ERROR: Transfer timeout or incomplete");
-        SD.remove(path); // 删除不完整的文件
+        fs.remove(path); // 删除不完整的文件
     }
 }
 
@@ -699,12 +703,13 @@ void SerialCommands::handleFileDownload(const String& path) {
         return;
     }
 
-    if (!SD.exists(path)) {
+    fs::FS& fs = HAL::SDInterface::getFS();
+    if (!fs.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
-    File file = SD.open(path, FILE_READ);
+    File file = fs.open(path, FILE_READ);
     if (!file) {
         Serial.println("ERROR: Failed to open file: " + path);
         return;
@@ -744,12 +749,13 @@ void SerialCommands::handleFileDelete(const String& path) {
         return;
     }
 
-    if (!SD.exists(path)) {
+    fs::FS& fs = HAL::SDInterface::getFS();
+    if (!fs.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
-    if (SD.remove(path)) {
+    if (fs.remove(path)) {
         Serial.println("SUCCESS: File deleted: " + path);
     } else {
         Serial.println("ERROR: Failed to delete file: " + path);
@@ -762,12 +768,13 @@ void SerialCommands::handleFileInfo(const String& path) {
         return;
     }
 
-    if (!SD.exists(path)) {
+    fs::FS& fs = HAL::SDInterface::getFS();
+    if (!fs.exists(path)) {
         Serial.println("ERROR: File not found: " + path);
         return;
     }
 
-    File file = SD.open(path, FILE_READ);
+    File file = fs.open(path, FILE_READ);
     if (!file) {
         Serial.println("ERROR: Failed to open file: " + path);
         return;

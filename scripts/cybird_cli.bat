@@ -7,8 +7,30 @@ echo   CybirdWatching CLI 快速启动器
 echo ======================================
 echo.
 
-REM 读取platformio.ini配置
-call "%~dp0read_platformio.bat"
+REM 选择平台
+echo 请选择目标平台：
+echo 1. pico32 (ESP32)
+echo 2. esp32-s3-devkitc-1 (ESP32-S3 发布版)
+echo 3. esp32-s3-debug (ESP32-S3 调试版)
+echo.
+set /p choice=请输入选项 (1-3): 
+
+if "%choice%"=="1" (
+    set PLATFORM=pico32
+) else if "%choice%"=="2" (
+    set PLATFORM=esp32-s3-devkitc-1
+) else if "%choice%"=="3" (
+    set PLATFORM=esp32-s3-debug
+) else (
+    echo 无效选择，使用默认平台 pico32
+    set PLATFORM=pico32
+)
+
+echo.
+echo 目标平台: %PLATFORM%
+
+REM 读取platformio.ini配置（传递平台参数）
+call "%~dp0read_platformio.bat" %PLATFORM%
 if "%COM_PORT%"=="" (
     echo 警告: 无法读取配置，使用默认端口 COM3
     set "COM_PORT=COM3"
@@ -40,8 +62,13 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM 启动CLI
-uv run python -m cybird_watching_cli.main -p %COM_PORT%
+REM 启动CLI (传递平台信息)
+echo.
+echo 启动参数: 
+echo   - 串口: %COM_PORT%
+echo   - 平台: %PLATFORM%
+echo.
+uv run python -m cybird_watching_cli.main -p %COM_PORT% --platform %PLATFORM%
 
 echo.
 echo 感谢使用CybirdWatching CLI！

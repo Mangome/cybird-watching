@@ -1,6 +1,8 @@
-#include <FastLED.h>
+/// @file    DemoReel100.ino
+/// @brief   FastLED "100 lines of code" demo reel, showing off some effects
+/// @example DemoReel100.ino
 
-FASTLED_USING_NAMESPACE
+#include <FastLED.h>
 
 // FastLED "100-lines-of-code" demo reel, showing just a few 
 // of the kinds of animation patterns you can quickly and easily 
@@ -11,9 +13,6 @@ FASTLED_USING_NAMESPACE
 //
 // -Mark Kriegsman, December 2014
 
-#if defined(FASTLED_VERSION) && (FASTLED_VERSION < 3001000)
-#warning "Requires FastLED 3.1 or later; check github for latest code."
-#endif
 
 #define DATA_PIN    3
 //#define CLK_PIN   4
@@ -36,6 +35,15 @@ void setup() {
   FastLED.setBrightness(BRIGHTNESS);
 }
 
+// Forward declarations for pattern functions
+void rainbow();
+void rainbowWithGlitter();
+void confetti();
+void sinelon();
+void juggle();
+void bpm();
+void nextPattern();
+void addGlitter(fract8 chanceOfGlitter);
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*SimplePatternList[])();
@@ -117,10 +125,9 @@ void bpm()
 void juggle() {
   // eight colored dots, weaving in and out of sync with each other
   fadeToBlackBy( leds, NUM_LEDS, 20);
-  byte dothue = 0;
+  uint8_t dothue = 0;
   for( int i = 0; i < 8; i++) {
     leds[beatsin16( i+7, 0, NUM_LEDS-1 )] |= CHSV(dothue, 200, 255);
     dothue += 32;
   }
 }
-

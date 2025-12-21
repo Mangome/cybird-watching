@@ -2,7 +2,8 @@
 #define BIRD_BUNDLE_LOADER_H
 
 #include <Arduino.h>
-#include <SD.h>
+#include <FS.h>
+#include "hal/sd_interface.h"
 #include <lvgl.h>
 #include <string>
 #include <vector>
@@ -95,6 +96,7 @@ private:
     std::vector<FrameIndexEntry> index_table_;
     std::string bundle_path_;
     bool is_loaded_;
+    File bundle_file_;  // 保持文件打开以提升性能
 
     /**
      * 验证bundle文件头部

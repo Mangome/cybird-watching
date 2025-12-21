@@ -1,7 +1,7 @@
 #include "bird_selector.h"
 #include "bird_utils.h"
 #include "system/logging/log_manager.h"
-#include "drivers/storage/sd_card/sd_card.h"
+#include "hal/sd_interface.h"
 #include "esp_system.h"
 #include <cstdlib>
 #include <cstring>
@@ -128,8 +128,10 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
     std::string path_msg = "Attempting to load bird config from: " + config_path;
     LOG_INFO("SELECTOR", path_msg.c_str());
 
+
     // 直接使用正确路径
-    File file = SD.open("/configs/bird_config.csv", "r");
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open("/configs/bird_config.csv", "r");
 
     if (!file) {
         LOG_ERROR("SELECTOR", "Cannot open bird config file: /configs/bird_config.csv");

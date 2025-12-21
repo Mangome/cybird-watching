@@ -247,9 +247,13 @@ void BirdManager::onGestureEvent(int gesture_type) {
             break;
 
         case GESTURE_BACKWARD_HOLD: // 后倾保持3秒 - 退出数据界面
-            LOG_INFO("BIRD", "Backward hold 1s detected, hiding stats view");
-            hideStatsView();
-            rgb.flashGreen(100); // 绿光闪一下
+            if (isStatsViewVisible()) {
+                LOG_INFO("BIRD", "Backward hold 1s detected, hiding stats view");
+                hideStatsView();
+                rgb.flashGreen(100); // 绿光闪一下
+            } else {
+                LOG_DEBUG("BIRD", "Backward hold ignored, not in stats view");
+            }
             break;
 
         case GESTURE_LEFT_TILT: // 左倾
@@ -445,6 +449,9 @@ void BirdManager::loadInitialBird() {
     }
 
     first_bird_loaded_ = true;
+    
+    // 注意: 不在这里调用lv_hide_logo()，因为此时可能没有LVGL互斥锁
+    // UI任务会在检测到动画播放时自动隐藏logo
 }
 
 void BirdManager::updateGestureDetection() {
@@ -481,7 +488,7 @@ void BirdManager::saveStatisticsIfNeeded() {
     if (time_since_last_save >= 10000) {
         if (statistics_->saveToFile()) {
             last_stats_save_time_ = current_time;
-            LOG_DEBUG("BIRD", "Statistics saved automatically");
+            // LOG_DEBUG("BIRD", "Statistics saved automatically");
         }
     }
 }

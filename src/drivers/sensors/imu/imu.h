@@ -1,10 +1,11 @@
 #ifndef IMU_H
 #define IMU_H
 
-
 #include <I2Cdev.h>
 #include <MPU6050.h>
 #include "lv_port_indev.h"
+#include "mpu6050_driver.h"
+#include "imu_detector.h"
 
 #define IMU_I2C_SDA 32
 #define IMU_I2C_SCL 33
@@ -29,13 +30,17 @@ extern lv_indev_state_t encoder_state;
 class IMU
 {
 private:
-	MPU6050 imu;
+	MPU6050 imu;  // 保留用于向后兼容
 	int flag;
 	int16_t ax, ay, az;
 	int16_t gx, gy, gz;
 
 	long  last_update_time;
 	static bool initialized;
+
+	// 新增：统一驱动接口
+	static IMUDriver* driver_;
+	static IMUSensorType sensor_type_;
 
 	// 手势检测相关变量
 	long last_gesture_time;
@@ -71,6 +76,12 @@ public:
 
 	// 手势检测方法
 	GestureType detectGesture();
+	
+	// 获取传感器类型
+	static IMUSensorType getSensorType() { return sensor_type_; }
+	
+	// 检查初始化状态
+	static bool isInitialized() { return initialized; }
 
 private:
 	// 手势检测辅助方法

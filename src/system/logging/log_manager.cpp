@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "log_manager.h"
-#include "sd_card.h"
+#include "hal/sd_interface.h"
 #include <vector>
 
 // 静态成员初始化
@@ -45,8 +45,9 @@ bool LogManager::createLogDirectory() {
     if (!sdCardAvailable) return false;
 
     // 检查并创建logs目录
-    if (!SD.exists("/logs")) {
-        if (!SD.mkdir("/logs")) {
+    fs::FS& fs = HAL::SDInterface::getFS();
+    if (!fs.exists("/logs")) {
+        if (!fs.mkdir("/logs")) {
             return false;
         }
     }
@@ -57,7 +58,8 @@ bool LogManager::createLogDirectory() {
 void LogManager::checkLogRotation() {
     if (!sdCardAvailable) return;
 
-    File logFile = SD.open(logFilePath, FILE_READ);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File logFile = fs.open(logFilePath, FILE_READ);
     if (logFile) {
         unsigned long size = logFile.size();
         logFile.close();
@@ -65,12 +67,12 @@ void LogManager::checkLogRotation() {
         // 如果文件超过最大大小，进行轮转
         if (size > maxLogFileSize) {
             // 删除旧的备份文件
-            if (SD.exists(logFilePath + ".old")) {
-                SD.remove(logFilePath + ".old");
+            if (fs.exists(logFilePath + ".old")) {
+                fs.remove(logFilePath + ".old");
             }
 
             // 将当前日志重命名为备份
-            SD.rename(logFilePath, logFilePath + ".old");
+            fs.rename(logFilePath, logFilePath + ".old");
 
             if (logOutputMode == OUTPUT_SERIAL || logOutputMode == OUTPUT_BOTH) {
                 Serial.println("[LOG] Log rotated, old size: " + String(size) + " bytes");
@@ -102,7 +104,8 @@ void LogManager::writeToSDCard(const String& levelStr, const String& tag, const 
 
     checkLogRotation();
 
-    File logFile = SD.open(logFilePath, FILE_APPEND);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File logFile = fs.open(logFilePath, FILE_APPEND);
     if (logFile) {
         String logLine = "[" + getTimestamp() + "] [" + levelStr + "] [" + tag + "] " + message + "\n";
         logFile.print(logLine);
@@ -117,11 +120,11 @@ void LogManager::setLogLevel(LogLevel level) {
 void LogManager::setLogOutput(LogOutput output) {
     logOutputMode = output;
 
-    // 如果需要SD卡输出，检查SD卡是否可用（不重新初始化，因为SD卡已经在sd_card.cpp中初始化了）
+    // 如果需要SD卡输出，检查SD卡是否可用
     if ((output == OUTPUT_SD_CARD || output == OUTPUT_BOTH) && !sdCardAvailable) {
         Serial.println("[LOG] Checking SD card availability...");
-        // 尝试通过检查SD卡类型来验证SD卡是否可用
-        if (SD.cardType() != CARD_NONE) {
+        // 使用新接口检查SD卡是否已挂载
+        if (HAL::SDInterface::isMounted()) {
             sdCardAvailable = true;
             if (createLogDirectory()) {
                 Serial.println("[LOG] SD card is available for logging");
@@ -235,15 +238,16 @@ void LogManager::flush() {
 }
 
 void LogManager::clearLogFile() {
-    if (sdCardAvailable && SD.exists(logFilePath)) {
-        SD.remove(logFilePath);
+    if (sdCardAvailable && HAL::SDInterface::exists(logFilePath.c_str())) {
+        fs::FS& fs = HAL::SDInterface::getFS();
+        fs.remove(logFilePath);
         info("LOG", "Log file cleared");
     }
 }
 
 String LogManager::getLogContent(int maxLines) {
     String content = "";
-    if (!sdCardAvailable || !SD.exists(logFilePath)) {
+    if (!sdCardAvailable || !HAL::SDInterface::exists(logFilePath.c_str())) {
         content = "No log file available\n";
         return content;
     }
@@ -251,7 +255,8 @@ String LogManager::getLogContent(int maxLines) {
     // 限制最大行数以避免内存问题和看门狗超时
     const int safeMaxLines = min(maxLines, 100);
 
-    File logFile = SD.open(logFilePath, FILE_READ);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File logFile = fs.open(logFilePath, FILE_READ);
     if (!logFile) {
         content = "Failed to open log file\n";
         return content;
@@ -330,11 +335,12 @@ String LogManager::getLogContent(int maxLines) {
 }
 
 unsigned long LogManager::getLogFileSize() {
-    if (!sdCardAvailable || !SD.exists(logFilePath)) {
+    if (!sdCardAvailable || !HAL::SDInterface::exists(logFilePath.c_str())) {
         return 0;
     }
 
-    File logFile = SD.open(logFilePath, FILE_READ);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File logFile = fs.open(logFilePath, FILE_READ);
     if (logFile) {
         unsigned long size = logFile.size();
         logFile.close();

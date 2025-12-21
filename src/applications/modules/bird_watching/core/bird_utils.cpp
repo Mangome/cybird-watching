@@ -1,5 +1,5 @@
 #include "bird_utils.h"
-#include "drivers/storage/sd_card/sd_card.h"
+#include "hal/sd_interface.h"
 #include <cstdio>
 #include <Arduino.h>
 
@@ -15,7 +15,8 @@ uint16_t detectFrameCount(uint16_t bird_id) {
     char bundle_path[64];
     snprintf(bundle_path, sizeof(bundle_path), "/birds/%d/bundle.bin", bird_id);
 
-    File bundle_file = SD.open(bundle_path);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File bundle_file = fs.open(bundle_path);
     if (!bundle_file) {
         Serial.printf("[WARN] Bundle not found: %s\n", bundle_path);
         return 0;

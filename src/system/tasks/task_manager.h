@@ -9,7 +9,7 @@
 
 // 任务配置
 #define UI_TASK_STACK_SIZE      8192    // UI任务栈大小(8KB)
-#define SYSTEM_TASK_STACK_SIZE  8192    // 系统任务栈大小(8KB)
+#define SYSTEM_TASK_STACK_SIZE  16384   // 系统任务栈大小(16KB) - 增加以支持日志命令
 #define UI_TASK_PRIORITY        2       // UI任务优先级
 #define SYSTEM_TASK_PRIORITY    1       // 系统任务优先级
 #define UI_TASK_CORE            0       // UI任务运行在Core 0 (Protocol Core)

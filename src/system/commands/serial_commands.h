@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include "log_manager.h"
-#include "sd_card.h"
+#include "hal/sd_interface.h"
 
 class SerialCommands {
 private:

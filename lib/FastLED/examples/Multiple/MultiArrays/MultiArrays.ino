@@ -1,3 +1,7 @@
+/// @file    MultiArrays.ino
+/// @brief   Demonstrates how to use multiple LED strips, each with their own data
+/// @example MultiArrays.ino
+
 // MultiArrays - see https://github.com/FastLED/FastLED/wiki/Multiple-Controller-Examples for more info on
 // using multiple controllers.  In this example, we're going to set up three NEOPIXEL strips on three
 // different pins, each strip getting its own CRGB array to be played with
@@ -33,7 +37,7 @@ void loop() {
     // clear our current dot before we move on
     redLeds[i] = CRGB::Black;
     greenLeds[i] = CRGB::Black;
-    blueLeds[i] = CRGB::Blue;
+    blueLeds[i] = CRGB::Black;
     delay(100);
   }
 
@@ -46,7 +50,7 @@ void loop() {
     // clear our current dot before we move on
     redLeds[i] = CRGB::Black;
     greenLeds[i] = CRGB::Black;
-    blueLeds[i] = CRGB::Blue;
+    blueLeds[i] = CRGB::Black;
     delay(100);
   }
 }

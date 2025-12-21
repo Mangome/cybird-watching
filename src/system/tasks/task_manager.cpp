@@ -184,6 +184,8 @@ void TaskManager::uiTaskFunction(void* parameter)
     TaskMessage msg;
     TickType_t lastWakeTime = xTaskGetTickCount();
     const TickType_t taskPeriod = pdMS_TO_TICKS(5); // 5ms周期 = 200Hz
+    
+    static bool logo_hidden = false;  // 标记logo是否已隐藏
 
     while (true) {
         // 处理消息队列(非阻塞)
@@ -211,6 +213,13 @@ void TaskManager::uiTaskFunction(void* parameter)
             // 处理BirdWatching触发请求(必须在UI任务中执行)
             // 注意: 图像加载可能耗时较长，但已优化为分块加载
             BirdWatching::processBirdTriggerRequest();
+            
+            // 如果动画正在播放且logo还没隐藏，立即隐藏logo
+            if (!logo_hidden && BirdWatching::isAnimationPlaying()) {
+                lv_hide_logo();
+                logo_hidden = true;
+                LOG_INFO("UI_TASK", "Animation started, logo hidden automatically");
+            }
 
             // LVGL定时器处理
             lv_timer_handler();

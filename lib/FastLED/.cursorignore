@@ -1,0 +1,32 @@
+# Cursor ignore file - excludes files/directories from Cursor's indexing and search
+
+# Build directories
+.build/
+build/
+out/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.platformio/
+
+# Cache directories
+.cache/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Temporary directories
+tmp/
+temp/
+ignore/
+
+# Environment
+.venv/
+.env
+
+# Other build outputs
+dist/
+firmware_sizes.csv

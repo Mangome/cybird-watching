@@ -1,3 +1,7 @@
+/// @file    ArrayOfLedArrays.ino
+/// @brief   Set up three LED strips, all running from an array of arrays
+/// @example ArrayOfLedArrays.ino
+
 // ArrayOfLedArrays - see https://github.com/FastLED/FastLED/wiki/Multiple-Controller-Examples for more info on
 // using multiple controllers.  In this example, we're going to set up three NEOPIXEL strips on three
 // different pins, each strip getting its own CRGB array to be played with, only this time they're going
@@ -12,14 +16,14 @@ CRGB leds[NUM_STRIPS][NUM_LEDS_PER_STRIP];
 // For mirroring strips, all the "special" stuff happens just in setup.  We
 // just addLeds multiple times, once for each strip
 void setup() {
-  // tell FastLED there's 60 NEOPIXEL leds on pin 10
-  FastLED.addLeds<NEOPIXEL, 10>(leds[0], NUM_LEDS_PER_STRIP);
+  // tell FastLED there's 60 NEOPIXEL leds on pin 2
+  FastLED.addLeds<NEOPIXEL, 2>(leds[0], NUM_LEDS_PER_STRIP);
 
-  // tell FastLED there's 60 NEOPIXEL leds on pin 11
-  FastLED.addLeds<NEOPIXEL, 11>(leds[1], NUM_LEDS_PER_STRIP);
+  // tell FastLED there's 60 NEOPIXEL leds on pin 3
+  FastLED.addLeds<NEOPIXEL, 3>(leds[1], NUM_LEDS_PER_STRIP);
 
-  // tell FastLED there's 60 NEOPIXEL leds on pin 12
-  FastLED.addLeds<NEOPIXEL, 12>(leds[2], NUM_LEDS_PER_STRIP);
+  // tell FastLED there's 60 NEOPIXEL leds on pin 4
+  FastLED.addLeds<NEOPIXEL, 4>(leds[2], NUM_LEDS_PER_STRIP);
 
 }
 

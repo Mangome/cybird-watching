@@ -1,6 +1,6 @@
 #include "bird_stats.h"
 #include "system/logging/log_manager.h"
-#include "drivers/storage/sd_card/sd_card.h"
+#include "hal/sd_interface.h"
 #include <ctime>
 #include <cstring>
 #include <cstdio>
@@ -117,8 +117,10 @@ bool BirdStatistics::saveToFile() {
         return false;
     }
 
+
     // 使用SD卡API写入文件
-    File file = SD.open(data_file_.c_str(), FILE_WRITE);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(data_file_.c_str(), FILE_WRITE);
     if (!file) {
         LOG_ERROR("BIRD", (String("Failed to open file for writing: ") + data_file_.c_str()).c_str());
         return false;
@@ -132,7 +134,7 @@ bool BirdStatistics::saveToFile() {
         return false;
     }
 
-    LOG_INFO("BIRD", (String("Statistics saved to ") + data_file_.c_str()).c_str());
+    // LOG_INFO("BIRD", (String("Statistics saved to ") + data_file_.c_str()).c_str());
     return true;
 }
 
@@ -142,14 +144,16 @@ bool BirdStatistics::loadFromFile() {
         return false;
     }
 
+
     // 检查文件是否存在
-    if (!SD.exists(data_file_.c_str())) {
+    if (!HAL::SDInterface::exists(data_file_.c_str())) {
         LOG_INFO("BIRD", (String("Statistics file does not exist: ") + data_file_.c_str()).c_str());
         return false;
     }
 
     // 读取文件
-    File file = SD.open(data_file_.c_str(), FILE_READ);
+    fs::FS& fs = HAL::SDInterface::getFS();
+    File file = fs.open(data_file_.c_str(), FILE_READ);
     if (!file) {
         LOG_ERROR("BIRD", (String("Failed to open file for reading: ") + data_file_.c_str()).c_str());
         return false;
