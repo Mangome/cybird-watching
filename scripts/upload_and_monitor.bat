@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
 
-echo 请选择编译环境：
+echo Please select build environment:
 echo 1. pico32
 echo 2. esp32-s3-devkitc-1
 echo 3. esp32-s3-debug
 echo.
-set /p choice=请输入选项 (1-3): 
+set /p choice=Please enter option (1-3): 
 
 if "%choice%"=="1" (
     set ENV=pico32
@@ -18,21 +18,21 @@ if "%choice%"=="1" (
     set ENV=esp32-s3-debug
     set RUN_MONITOR=1
 ) else (
-    echo 无效选择，使用默认环境 pico32
+    echo Invalid option, using default environment pico32
     set ENV=pico32
     set RUN_MONITOR=1
 )
 
 echo.
-echo 编译环境: %ENV%
+echo Build environment: %ENV%
 
-REM 读取platformio.ini配置（传递平台参数）
+REM Read platformio.ini configuration (pass platform parameter)
 call "%~dp0read_platformio.bat" %ENV%
 if "%COM_PORT%"=="" set "COM_PORT=COM8"
 if "%BAUD_RATE%"=="" set "BAUD_RATE=115200"
 
-echo 串口: %COM_PORT%
-echo 波特率: %BAUD_RATE%
+echo Serial port: %COM_PORT%
+echo Baud rate: %BAUD_RATE%
 echo.
 
 cd /d "%~dp0..\"
