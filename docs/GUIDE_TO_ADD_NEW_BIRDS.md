@@ -98,13 +98,9 @@
 resources/
 └── birds/
     ├── 1001/            # 小鸟 ID
-    │   ├── 1.bin     # 动画资源文件
-    │   ├── 2.bin
-    │   └── ...
+    │   └── bundle.bin   # 动画资源文件（单一文件）
     ├── 1002/
-    │   ├── 1.bin
-    │   ├── 2.bin
-    │   └── ...
+    │   └── bundle.bin
     └── ...
 ```
 
@@ -214,51 +210,49 @@ python main.py
 
 | 参数 | 值 | 说明 |
 |------|------|------|
-| **Name** | `lv_font_notosanssc_16` | ⚠️ 数字必须与字体大小匹配 |
+| **Name** | `notosanssc_16` | 字体名称（不含 lv_font_ 前缀） |
 | **Size** | `16` | 当前项目使用 16px |
 | **Bpp** | `2 bit-per-pixel` | 推荐值，平衡质量和空间 |
-| **Font** | `NotoSansSC-Regular.ttf` | 思源黑体中文字体 |
-| **Range** | ⚠️ 见下方 | 使用自定义 Symbols |
+| **Font** | `NotoSansSC-Medium.ttf` | 思源黑体（备份在 `scripts/uniq_fonts/fonts/`） |
+| **Format** | `Binary` | ⚠️ 必须选择 Binary 格式！ |
+| **Symbols** | 见下方 | 使用步骤 3 生成的字符集 |
 
-### 配置 Range（字符范围）
+### 配置 Symbols（字符范围）
 
 **不要使用** Unicode Range 方式（会生成过大的字体文件）
 
 选择 **Symbols** 方式：
 
 1. 选择 `Symbols` 单选框
-2. 将步骤 3 复制的完整字符集粘贴到文本框中
+2. 将步骤 3 生成的 `scripts/uniq_fonts/font_chars.txt` 内容粘贴到文本框
 3. 确保包含所有字符（包括空格）
 
 ### 生成和下载字体
 
 1. 点击 `Convert` 按钮
 2. 等待生成完成
-3. 下载生成的 `lv_font_notosanssc_16.c` 文件
+3. 下载生成的 `.bin` 文件
+4. **重命名**为 `.fnt` 格式：`notosanssc_16.bin` → `notosanssc_16.fnt`
 
 ### 放置字体文件
 
-将下载的字体文件放置到项目中：
+将字体文件复制到 **SD 卡**：
 
-```bash
-src/applications/modules/resources/fonts/lv_font_notosanssc_16.c
+```
+SD卡根目录/
+└── fonts/
+    ├── notosanssc_12.fnt
+    ├── notosanssc_16.fnt  ← 替换或新增
+    └── notosanssc_18.fnt
 ```
 
-**⚠️ 替换现有文件**，确认覆盖。
-
-### 检查字体声明
-
-确认 `src/config/guider_fonts.h` 中有对应的字体声明：
-
-```c
-LV_FONT_DECLARE(lv_font_notosanssc_16)
-```
+**⚠️ 注意**：字体文件存放在 SD 卡，不是固件中！
 
 ### 可选：其他字体大小
 
 如果需要调整字体大小，请参考：[修改字体大小指南](CHANGE_FONT_SIZE.md)
 
-支持的字体大小：12px、14px、**16px**（当前）、18px、20px
+支持的字体大小：12px、14px、**16px**（当前）、18px
 
 ---
 
@@ -279,6 +273,21 @@ cd scripts
 pio_run.bat
 ```
 
+### 准备 SD 卡
+
+确保 SD 卡包含以下内容：
+
+```
+SD卡根目录/
+├── fonts/
+│   └── notosanssc_16.fnt  ← 字体文件
+├── configs/
+│   └── bird_config.csv    ← 小鸟配置
+└── birds/
+    └── <id>/              ← 小鸟动画资源
+        └── *.bin
+```
+
 ### 监控串口输出
 
 ```bash
@@ -296,7 +305,8 @@ upload_and_monitor.bat
 
 在设备上测试以下功能：
 
-- ✅ **新小鸟显示**：检查新添加的小鸟是否正确显示（用 bird trigger 串口命令直接触发）
+- ✅ **字体加载**：检查串口日志是否显示 `[INFO] FONT: Font loaded: notosanssc_16`
+- ✅ **新小鸟显示**：检查新添加的小鸟是否正确显示（用 `bird trigger` 串口命令直接触发）
 - ✅ **动画播放**：确认动画流畅播放
 - ✅ **名称显示**：检查小鸟名称是否正常显示（无方块或乱码）
 - ✅ **权重生效**：观察新小鸟是否按预期权重出现
@@ -314,16 +324,17 @@ upload_and_monitor.bat
 2. **名称显示为方块（□）**：
    - 重新运行步骤 3 采集文字
    - 确认步骤 4 字体生成时包含了所有字符
-   - 检查字体文件是否正确放置
+   - 检查字体文件是否正确放置到 SD 卡 `/fonts/` 目录
+   - 检查串口日志是否有字体加载错误
 
-3. **动画不显示**：
+3. **字体加载失败**：
+   - 确认字体文件扩展名是 `.fnt`（不是 `.bin`）
+   - 确认在线工具选择了 **Binary** 格式
+   - 检查 SD 卡是否正确挂载
+
+4. **动画不显示**：
    - 检查 .bin 文件路径是否正确
-   - 检查文件命名是否符合规范（`resources/birds/<id>/x.bin`）
-
-4. **Flash 空间不足**：
-   - 考虑减少字体大小（14px）
-   - 优化动画帧数和尺寸
-   - 参考 [修改字体大小指南](CHANGE_FONT_SIZE.md) 中的空间管理建议
+   - 检查文件命名是否符合规范（`resources/birds/<id>/bundle.bin`）
 
 ---
 
@@ -346,13 +357,14 @@ upload_and_monitor.bat
 - 确保字符集中没有特殊控制字符
 - 尝试使用较小的字体大小
 - 检查字符数量是否过多（建议 < 3000 个汉字）
+- 确认选择了 **Binary** 格式（不是 C Array）
 
 ### Q4: 设备无法启动或卡顿？
 
 **A**: 
-- 检查 Flash 使用率（不要超过 95%）
+- 检查 SD 卡是否正确格式化（FAT32）
+- 确认字体文件路径正确（`/fonts/notosanssc_16.fnt`）
 - 减少动画资源大小
-- 优化字体大小和 bpp 设置
 
 ### Q5: 如何删除已添加的小鸟？
 
@@ -380,22 +392,22 @@ upload_and_monitor.bat
 - [ ] 将 .bin 文件放到 `resources/birds/<id>/` 目录
 - [ ] 编辑 `bird_config.csv` 添加配置
 - [ ] 运行 `uniq_fonts/main.py` 采集文字
-- [ ] 访问 LVGL Font Converter 生成字体
-- [ ] 替换字体文件到 `src/applications/modules/resources/fonts/`
+- [ ] 访问 LVGL Font Converter 生成字体（选择 **Binary** 格式）
+- [ ] 将 `.bin` 重命名为 `.fnt`，复制到 SD 卡 `/fonts/` 目录
 - [ ] 编译并上传固件
-- [ ] 在设备上测试验证
+- [ ] 插入 SD 卡，在设备上测试验证
 
 ### 相关文件路径
 
 | 文件 | 路径 |
 |------|------|
 | 小鸟配置 | `resources/configs/bird_config.csv` |
-| 小鸟资源 | `resources/birds/<id>/anim.bin` |
-| 字体文件 | `src/applications/modules/resources/fonts/` |
-| 字体声明 | `src/config/guider_fonts.h` |
+| 小鸟资源 | `resources/birds/<id>/bundle.bin` |
+| 字体文件 | SD 卡 `/fonts/*.fnt` |
 | 转换脚本 | `scripts/batch_convert_mp4.bat` |
 | 图片转换 | `scripts/run_convert.bat` |
 | 文字采集 | `scripts/uniq_fonts/main.py` |
+| 字体生成指南 | `resources/fonts/README.md` |
 
 ### 有用的命令
 
@@ -418,6 +430,7 @@ platformio run --target size
 ## 参考文档
 
 - [修改字体大小指南](CHANGE_FONT_SIZE.md) - 字体配置详解
+- [字体生成指南](../resources/fonts/README.md) - binfont 格式字体生成
 - [CLI 工具使用说明](../scripts/README_CLI_TOOLS.md) - 命令行工具文档
 - [LVGL 字体转换器](https://lvgl.io/tools/fontconverter) - 在线字体生成工具
 

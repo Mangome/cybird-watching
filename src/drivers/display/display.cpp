@@ -1,5 +1,6 @@
 #include "display.h"
 #include "log_manager.h"
+#include "lv_port_fatfs.h"  // LVGL filesystem interface
 
 /*
 Display driver using LovyanGFX
@@ -117,6 +118,10 @@ void Display::init()
 	setBackLight(1.0);  // 最大亮度
 
 	lv_init();
+	
+	// Register LVGL filesystem driver for SD card access
+	lv_fs_if_init();
+	LOG_INFO("TFT", "LVGL filesystem driver registered");
 
 	LOG_INFO("TFT", "Initializing LovyanGFX...");
 

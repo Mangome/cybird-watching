@@ -5,6 +5,7 @@
 #include "system/logging/log_manager.h"
 #include "config/guider_fonts.h"
 #include "config/ui_texts.h"
+#include "applications/modules/resources/fonts/font_manager.h"
 
 namespace BirdWatching {
 
@@ -59,11 +60,19 @@ void StatsView::createUI(lv_obj_t* parent) {
     // 将容器移到最顶层
     lv_obj_move_foreground(container_);
 
+    // 尝试从 SD 卡加载中文字体，失败则使用英文备用字体
+    lv_font_t* ui_font = FontManager::getInstance().loadFont("notosanssc_16");
+    if (!ui_font) {
+        // 使用 LVGL 已启用的 montserrat_14 作为备用
+        ui_font = (lv_font_t*)&lv_font_montserrat_14;
+        LOG_WARN("STATS_VIEW", "Failed to load Chinese font, using fallback");
+    }
+
     // 创建标题："观鸟统计"（居中显示）
     title_label_ = lv_label_create(container_);
     lv_label_set_text(title_label_, "观鸟统计");
     lv_obj_set_style_text_color(title_label_, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_text_font(title_label_, &lv_font_notosanssc_16, LV_PART_MAIN); // 改用16号字体
+    lv_obj_set_style_text_font(title_label_, ui_font, LV_PART_MAIN);
     lv_obj_align(title_label_, LV_ALIGN_TOP_MID, 0, 10);
 
     // 创建5行小鸟信息标签
@@ -71,7 +80,7 @@ void StatsView::createUI(lv_obj_t* parent) {
         bird_labels_[i] = lv_label_create(container_);
         lv_label_set_text(bird_labels_[i], "");
         lv_obj_set_style_text_color(bird_labels_[i], lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-        lv_obj_set_style_text_font(bird_labels_[i], &lv_font_notosanssc_16, LV_PART_MAIN);
+        lv_obj_set_style_text_font(bird_labels_[i], ui_font, LV_PART_MAIN);
         lv_obj_align(bird_labels_[i], LV_ALIGN_TOP_LEFT, 10, 40 + i * 30);
         lv_label_set_recolor(bird_labels_[i], true); // 启用颜色标记
     }
@@ -80,21 +89,21 @@ void StatsView::createUI(lv_obj_t* parent) {
     prev_label_ = lv_label_create(container_);
     lv_label_set_text(prev_label_, UITexts::StatsView::PREV_PAGE);
     lv_obj_set_style_text_color(prev_label_, lv_color_hex(0x888888), LV_PART_MAIN);
-    lv_obj_set_style_text_font(prev_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
+    lv_obj_set_style_text_font(prev_label_, ui_font, LV_PART_MAIN);
     lv_obj_align(prev_label_, LV_ALIGN_BOTTOM_LEFT, 10, -10);
 
     // 创建\"下一页\"标签（右对齐）
     next_label_ = lv_label_create(container_);
     lv_label_set_text(next_label_, UITexts::StatsView::NEXT_PAGE);
     lv_obj_set_style_text_color(next_label_, lv_color_hex(0x888888), LV_PART_MAIN);
-    lv_obj_set_style_text_font(next_label_, &lv_font_notosanssc_16, LV_PART_MAIN);
+    lv_obj_set_style_text_font(next_label_, ui_font, LV_PART_MAIN);
     lv_obj_align(next_label_, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
 
     // 创建页码标识标签（底部居中）
     page_indicator_ = lv_label_create(container_);
     lv_label_set_text(page_indicator_, "1/1");
     lv_obj_set_style_text_color(page_indicator_, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_text_font(page_indicator_, &lv_font_notosanssc_16, LV_PART_MAIN);
+    lv_obj_set_style_text_font(page_indicator_, ui_font, LV_PART_MAIN);
     lv_obj_align(page_indicator_, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
 

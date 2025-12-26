@@ -1,5 +1,47 @@
 # CybirdWatching 更新日志
 
+## [Unreleased] - 字体动态加载优化
+
+### ✨ 新特性
+- **字体从 SD 卡动态加载**
+  - 使用 LVGL 原生 binfont API (lv_binfont_create)
+  - 字体文件存放在 SD 卡 `/fonts/` 目录
+  - 支持运行时动态加载和切换字体
+  - LVGL 自动管理字形缓存，按需加载
+
+### 🎯 优化改进
+- **大幅降低固件体积**
+  - 移除固件内置字体：~281KB Flash
+  - 移除 lv_font_notosanssc_12/16/18 C 数组文件
+  - 固件 Flash 使用率降低约 21%
+
+- **内存优化**
+  - RAM 占用仅增加 ~20-50KB（LVGL 缓存）
+  - 相比固件内置方案，总内存持平
+  - 不再需要大量 Flash 空间
+
+- **字体管理灵活性提升**
+  - 新增 FontManager 类统一管理字体
+  - 支持多字体并存和动态切换
+  - 字体更新无需重新烧录固件
+  - 完善的错误处理和日志记录
+
+### 📝 文档更新
+- 新增 `docs/FONT_CONVERSION_GUIDE.md` - 字体转换完整指南
+- 新增 `docs/FONT_LOADING_TEST.md` - 测试指南
+- 新增 `resources/fonts/README.md` - 字体文件生成说明
+
+### 🔧 技术变更
+- 新增 `font_manager.h/cpp` - 字体动态加载器
+- 更新 `setup_scr_scenes.c` - 使用动态字体加载
+- 更新 `guider_fonts.h` - 移除固件字体声明
+
+### 📦 依赖变化
+- 依赖 LVGL binfont 支持（已启用）
+- 依赖 SD 卡文件系统驱动器 'S:'
+
+---
+
 ## [1.1.0] - 2025-12-16
 
 ### ✨ ESP32-S3 平台支持

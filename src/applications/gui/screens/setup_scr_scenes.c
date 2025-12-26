@@ -8,40 +8,27 @@
 #include "gui_guider.h"
 #include "Arduino.h"
 #include "bird_animation_bridge.h"
+#include "applications/modules/resources/fonts/font_manager_c.h"
 
 // 小鸟信息显示配置
 // ⚠️ 字体配置统一在这里管理，请勿在其他文件重复定义
 #define BIRD_INFO_USE_CHINESE_FONT 1  // 1: 使用中文字体, 0: 使用英文字体
 #define BIRD_INFO_FONT_SIZE 18  // 字体大小（如需修改，需重新生成对应大小的字体文件）
 
-// 字体声明（根据大小自动选择对应的字体）
-// 注意：修改 BIRD_INFO_FONT_SIZE 后，需要生成对应的字体文件：lv_font_notosanssc_XX.c
+// 构建字体名称（从 SD 卡加载）
 #if BIRD_INFO_USE_CHINESE_FONT
     #if BIRD_INFO_FONT_SIZE == 12
-        #define BIRD_INFO_FONT lv_font_notosanssc_12
-    #elif BIRD_INFO_FONT_SIZE == 14
-        #define BIRD_INFO_FONT lv_font_notosanssc_14
+        #define BIRD_INFO_FONT_NAME "notosanssc_12"
     #elif BIRD_INFO_FONT_SIZE == 16
-        #define BIRD_INFO_FONT lv_font_notosanssc_16
+        #define BIRD_INFO_FONT_NAME "notosanssc_16"
     #elif BIRD_INFO_FONT_SIZE == 18
-        #define BIRD_INFO_FONT lv_font_notosanssc_18
-    #elif BIRD_INFO_FONT_SIZE == 20
-        #define BIRD_INFO_FONT lv_font_notosanssc_20
+        #define BIRD_INFO_FONT_NAME "notosanssc_18"
     #else
-        #define BIRD_INFO_FONT lv_font_notosanssc_16  // 默认16号
+        #define BIRD_INFO_FONT_NAME "notosanssc_16"  // 默认16号
     #endif
+    #define FALLBACK_FONT &lv_font_montserrat_14  // 备用字体（使用LVGL已启用的字体）
 #else
-    #if BIRD_INFO_FONT_SIZE == 14
-        #define BIRD_INFO_FONT lv_font_montserrat_14
-    #elif BIRD_INFO_FONT_SIZE == 16
-        #define BIRD_INFO_FONT lv_font_montserrat_16
-    #elif BIRD_INFO_FONT_SIZE == 18
-        #define BIRD_INFO_FONT lv_font_montserrat_18
-    #elif BIRD_INFO_FONT_SIZE == 20
-        #define BIRD_INFO_FONT lv_font_montserrat_20
-    #else
-        #define BIRD_INFO_FONT lv_font_montserrat_14  // 默认14号
-    #endif
+    #define FALLBACK_FONT &lv_font_montserrat_14  // 备用字体
 #endif
 
 
@@ -79,8 +66,21 @@ void setup_screnes(lv_ui* ui)
 	ui->scenes_bird_info_label = lv_label_create(ui->scenes);
 	lv_obj_set_style_text_color(ui->scenes_bird_info_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 	
-	// 设置字体（根据配置自动选择）
-	lv_obj_set_style_text_font(ui->scenes_bird_info_label, &BIRD_INFO_FONT, LV_PART_MAIN);
+	// 从 SD 卡动态加载字体
+	#if BIRD_INFO_USE_CHINESE_FONT
+		lv_font_t* bird_info_font = font_manager_load(BIRD_INFO_FONT_NAME);
+		
+		if (bird_info_font) {
+			// 使用从 SD 卡加载的字体
+			lv_obj_set_style_text_font(ui->scenes_bird_info_label, bird_info_font, LV_PART_MAIN);
+		} else {
+			// 加载失败，使用备用字体
+			lv_obj_set_style_text_font(ui->scenes_bird_info_label, FALLBACK_FONT, LV_PART_MAIN);
+		}
+	#else
+		// 使用 LVGL 内置英文字体
+		lv_obj_set_style_text_font(ui->scenes_bird_info_label, FALLBACK_FONT, LV_PART_MAIN);
+	#endif
 	
 	lv_label_set_text(ui->scenes_bird_info_label, "");
 	lv_obj_align(ui->scenes_bird_info_label, LV_ALIGN_BOTTOM_RIGHT, -10, -10);

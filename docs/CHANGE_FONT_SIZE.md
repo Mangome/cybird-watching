@@ -1,180 +1,198 @@
 # 修改字体大小指南
 
-## 当前配置
+## 当前架构
 
-```c
-#define BIRD_INFO_FONT_SIZE 16  // 当前使用 16px
+字体现在从 **SD 卡动态加载**（LVGL binfont 格式），不再编译到固件中。
+
+```
+SD卡根目录/
+└── fonts/
+    ├── notosanssc_12.fnt
+    ├── notosanssc_16.fnt
+    └── notosanssc_18.fnt
 ```
 
-字体文件: `lv_font_notosanssc_16.c`
+**优点**：
+- 节省固件 Flash 空间（~281KB）
+- 运行时动态切换字体
+- 添加新字体无需重新编译
 
 ---
 
 ## 如何修改字体大小
 
-### 步骤 1: 修改配置
-
-编辑 `src/applications/gui/screens/setup_scr_scenes.c`:
-
-```c
-#define BIRD_INFO_FONT_SIZE 18  // 改为你想要的大小（12/14/16/18/20）
-```
-
-### 步骤 2: 生成对应大小的字体
+### 步骤 1: 生成字体文件
 
 访问: https://lvgl.io/tools/fontconverter
 
 配置参数（以 18px 为例）:
 ```
-Name:  lv_font_notosanssc_18  ⚠️ 数字要匹配
-Size:  18
-Bpp:   2 bit-per-pixel
-Font:  NotoSansSC-Medium.ttf # 这个文件在scripts/uniq_fonts/fonts/ 目录有备份
-Symbols:  !#$%&()*+,-./012345...
+Name:     notosanssc_18
+Size:     18 px
+Bpp:      2 bit-per-pixel
+TTF/OTF:  NotoSansSC-Medium.ttf  # 备份在 scripts/uniq_fonts/fonts/
+Format:   Binary ⚠️ 必须选择 Binary!
+Symbols:  见 resources/fonts/README.md
 ```
 
-### 步骤 3: 更新字体声明
+### 步骤 2: 放入 SD 卡
 
-编辑 `src/config/guider_fonts.h`，添加新的字体声明:
-
-```c
-LV_FONT_DECLARE(lv_font_notosanssc_16)  // 保留旧的
-LV_FONT_DECLARE(lv_font_notosanssc_18)  // 添加新的
-```
-
-### 步骤 4: 放入字体文件
-
-将生成的 `lv_font_notosanssc_18.c` 放到:
-```
-src/applications/modules/resources/fonts/
-```
-
-### 步骤 5: 编译上传
+将生成的 `.bin` 文件重命名为 `.fnt`，复制到 SD 卡：
 
 ```bash
-platformio run --target upload
+# 重命名
+mv notosanssc_18.bin notosanssc_18.fnt
+
+# 复制到 SD 卡
+cp notosanssc_18.fnt /path/to/sdcard/fonts/
 ```
+
+### 步骤 3: 代码中加载字体
+
+```cpp
+#include "applications/modules/resources/fonts/font_manager.h"
+
+// 加载字体
+lv_font_t* font = FONT_MANAGER.loadFont("notosanssc_18");
+
+// 应用到 LVGL 对象
+if (font) {
+    lv_obj_set_style_text_font(label, font, 0);
+}
+```
+
+无需重新编译固件！
 
 ---
 
 ## 支持的字体大小
 
-代码已配置支持以下大小：
+| 大小 | 字体文件 | 文件大小（估计） |
+|------|---------|-----------------|
+| 12px | `notosanssc_12.fnt` | ~30KB |
+| **16px** | `notosanssc_16.fnt` ✅ | ~40KB |
+| 18px | `notosanssc_18.fnt` | ~45KB |
 
-| 大小 | 中文字体 | 英文字体 | 文件大小估计 |
-|------|---------|---------|-------------|
-| 12px | `lv_font_notosanssc_12` | `lv_font_montserrat_12` | ~350KB |
-| 14px | `lv_font_notosanssc_14` | `lv_font_montserrat_14` | ~450KB |
-| **16px** | `lv_font_notosanssc_16` ✅ | `lv_font_montserrat_16` | ~500KB |
-| 18px | `lv_font_notosanssc_18` | `lv_font_montserrat_18` | ~600KB |
-| 20px | `lv_font_notosanssc_20` | `lv_font_montserrat_20` | ~700KB |
+**注意**：字体文件存储在 SD 卡，不占用固件 Flash 空间。
 
 ---
 
-## 当前 Flash 使用情况
+## FontManager API
+
+```cpp
+// 获取单例
+FontManager& fm = FontManager::getInstance();
+// 或使用宏
+FONT_MANAGER
+
+// 加载字体（自动缓存，重复调用返回已加载的字体）
+lv_font_t* font = FONT_MANAGER.loadFont("notosanssc_16");
+
+// 检查字体是否已加载
+bool loaded = FONT_MANAGER.isFontLoaded("notosanssc_16");
+
+// 获取已加载的字体
+lv_font_t* font = FONT_MANAGER.getFont("notosanssc_16");
+
+// 销毁字体（释放内存）
+FONT_MANAGER.destroyFont("notosanssc_16");
+FONT_MANAGER.destroyFont(font);  // 或传入指针
+
+// 销毁所有字体
+FONT_MANAGER.destroyAllFonts();
+```
+
+---
+
+## 文件系统架构
+
+字体通过 LVGL 文件系统驱动访问 SD 卡：
 
 ```
-总容量: 1,310,720 bytes
-已使用:   748,225 bytes (57.1%)
-剩余:     562,495 bytes (42.9%)
-
-添加 16px 字体后:
-预计使用: 1,248,225 bytes (95.2%)
-剩余:        62,495 bytes (4.8%)
+LVGL 路径: S:/fonts/notosanssc_16.fnt
+           │
+           └─ 'S' 是 LVGL 文件系统驱动器字母
+              映射到 SD 卡根目录
 ```
 
-**建议**: 
-- ✅ 16px 及以下 - 空间充足
-- ⚠️ 18px - 空间紧张，可能需要清理
-- ❌ 20px - 可能超出 Flash 容量
+相关文件：
+- `src/system/lvgl/ports/lv_port_fatfs.cpp` - LVGL 9.x 文件系统驱动
+- `src/drivers/display/display.cpp` - 初始化时调用 `lv_fs_if_init()`
 
 ---
 
 ## 快速切换字体大小
 
-### 示例：从 16px 改为 14px
+### 示例：从 16px 改为 18px
 
-1. **修改配置**:
-```c
-#define BIRD_INFO_FONT_SIZE 14  // 从 16 改为 14
+1. **确保字体文件存在**：检查 SD 卡 `/fonts/notosanssc_18.fnt`
+
+2. **修改代码**：
+```cpp
+// 改为加载 18px 字体
+lv_font_t* font = FONT_MANAGER.loadFont("notosanssc_18");
 ```
 
-2. **生成字体**: `lv_font_notosanssc_14.c`
-
-3. **更新声明**:
-```c
-LV_FONT_DECLARE(lv_font_notosanssc_14)
-```
-
-4. **编译**: 代码会自动使用 `lv_font_notosanssc_14`
-
----
-
-## 代码逻辑
-
-配置会自动选择对应的字体：
-
-```c
-#if BIRD_INFO_FONT_SIZE == 16
-    #define BIRD_INFO_FONT lv_font_notosanssc_16
-#elif BIRD_INFO_FONT_SIZE == 18
-    #define BIRD_INFO_FONT lv_font_notosanssc_18
-// ... 其他大小
-#endif
-
-// 使用时
-lv_obj_set_style_text_font(label, &BIRD_INFO_FONT, LV_PART_MAIN);
-```
-
-**优点**:
-- ✅ 修改一个数字即可切换字体大小
-- ✅ 自动选择对应的字体文件
-- ✅ 编译时检查，避免错误
+3. **无需重新编译**（如果只是换字体文件）
 
 ---
 
 ## 常见问题
 
-### Q: 修改 BIRD_INFO_FONT_SIZE 后编译报错？
+### Q: 字体加载失败？
 
-A: 你需要先生成对应大小的字体文件并添加声明。例如改为 18，需要：
-1. 生成 `lv_font_notosanssc_18.c`
-2. 添加 `LV_FONT_DECLARE(lv_font_notosanssc_18)`
-3. 放置字体文件到 fonts 目录
+检查串口日志：
+```
+[ERROR] FONT: Failed to load font: S:/fonts/notosanssc_18.fnt
+```
 
-### Q: 能否同时保留多个字体大小？
+排查步骤：
+1. 确认 SD 卡已正确挂载
+2. 确认文件名正确（区分大小写）
+3. 确认扩展名是 `.fnt` 不是 `.bin`
+4. 确认在线工具选择了 **Binary** 格式
 
-A: 可以！生成多个字体文件，代码会根据 `BIRD_INFO_FONT_SIZE` 自动选择。但注意 Flash 空间占用。
+### Q: 显示乱码？
 
-### Q: 字体太小看不清？
+字体文件中可能不包含该字符。重新生成时检查 Symbols 参数是否完整。
 
-A: 建议使用 16px 或 18px，在 240x240 屏幕上效果较好。
+### Q: 能否同时使用多个字体大小？
 
-### Q: 字体太大占用空间？
+可以！FontManager 支持同时加载多个字体：
+```cpp
+lv_font_t* font16 = FONT_MANAGER.loadFont("notosanssc_16");
+lv_font_t* font18 = FONT_MANAGER.loadFont("notosanssc_18");
+```
 
-A: 可以：
-- 减小字体大小（14px）
-- 使用 2bpp 代替 4bpp
-- 只包含需要的字符（symbols 方式）
+### Q: 内存占用多少？
+
+LVGL 自动管理字形缓存，运行时内存占用约 20-50KB。
 
 ---
 
 ## 最佳实践
 
-**推荐配置**（平衡清晰度和空间）:
+**推荐配置**（平衡清晰度和文件大小）:
 ```
 Size: 16px
 Bpp:  2 bit-per-pixel
 ```
 
-**小屏幕优化**（节省空间）:
+**小屏幕优化**:
 ```
 Size: 14px
 Bpp:  2 bit-per-pixel
 ```
 
-**清晰优先**（需要更多空间）:
+**清晰优先**:
 ```
 Size: 18px
 Bpp:  4 bit-per-pixel
 ```
+
+---
+
+## 参考文档
+
+- 字体生成详细指南：`resources/fonts/README.md`
+- LVGL 字体工具：https://lvgl.io/tools/fontconverter

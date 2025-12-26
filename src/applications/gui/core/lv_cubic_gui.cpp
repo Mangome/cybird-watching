@@ -7,6 +7,7 @@
 #include "system/logging/log_manager.h"
 #include "config/version.h"
 #include "config/ui_texts.h"
+#include "applications/modules/resources/fonts/font_manager.h"
 
 // C语言全局变量
 extern "C" {
@@ -232,7 +233,15 @@ void lv_init_gui(void)
 		
 		// 设置版本号样式（灰色，不太明显）
 		lv_obj_set_style_text_color(logo_version_label, lv_color_hex(0x808080), LV_PART_MAIN);
-		lv_obj_set_style_text_font(logo_version_label, &lv_font_notosanssc_12, LV_PART_MAIN);
+		
+		// 尝试从 SD 卡加载中文字体，失败则使用英文备用字体
+		lv_font_t* version_font = FontManager::getInstance().loadFont("notosanssc_12");
+		if (version_font) {
+			lv_obj_set_style_text_font(logo_version_label, version_font, LV_PART_MAIN);
+		} else {
+			// 使用 LVGL 已启用的 montserrat_14 作为备用
+			lv_obj_set_style_text_font(logo_version_label, &lv_font_montserrat_14, LV_PART_MAIN);
+		}
 		
 		// 位置：底部居中，距离边缘 10 像素
 		lv_obj_align(logo_version_label, LV_ALIGN_BOTTOM_MID, 0, -10);
